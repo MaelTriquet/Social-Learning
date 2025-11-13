@@ -61,3 +61,17 @@ void Node::forward()
 	activate();
 	propagate();
 }
+
+void Node::remove_connection(int history_idx_)
+{
+	for (int i = 0; i < (int)connections.size(); i++)
+	{
+		if (connections[i]->history_idx == history_idx_)
+		{
+			// remove connection from this node
+			std::swap(connections[i], connections.back());
+			connections.pop_back();
+			break;
+		}
+	}
+}

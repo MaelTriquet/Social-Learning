@@ -1,4 +1,5 @@
 #include <vector>
+#include "const.hpp"
 
 struct History_Connection
 {

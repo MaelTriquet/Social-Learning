@@ -2,6 +2,8 @@
 #include "connection.hpp"
 #include <vector>
 #include "history.hpp"
+#include "const.hpp"
+#include <iostream>
 
 class Brain
 {
@@ -14,12 +16,15 @@ public:
 	Brain();
 	~Brain();
 
-	void add_node(int layer, int act_fun_idx);
-	void add_connection(int from, int to, float weight);
+	void add_node(Connection* connection);
+	void add_connection(Node* from, Node* to, float weight);
 	void propagate();
 	void mutate();
 	void mutate_add_node();
 	void mutate_add_connection();
 	void mutate_weight();
-	void back_propagate();
+	void print();
+	
+	void test_add_node(int connection_idx);
+	void test_add_connection(int from_idx, int to_idx, float weight);
 };

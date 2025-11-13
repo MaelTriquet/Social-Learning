@@ -8,11 +8,13 @@ public:
 	Node* from;
 	Node* to;
 	float weight;
+	int history_idx;
 
-	Connection(Node* from_, Node* to_, float weight_):
+	Connection(Node* from_, Node* to_, float weight_, int history_idx_):
 		from(from_),
 		to(to_),
-		weight(weight_)
+		weight(weight_),
+		history_idx(history_idx_)
 	{
 	}
 };

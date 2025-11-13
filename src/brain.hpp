@@ -1,9 +1,11 @@
+#pragma once
 #include "node.hpp"
 #include "connection.hpp"
 #include <vector>
 #include "history.hpp"
 #include "const.hpp"
 #include <iostream>
+#include "random.hpp"
 
 class Brain
 {
@@ -11,6 +13,7 @@ private:
 	std::vector<Node*> m_nodes = {};
 	std::vector<Connection*> m_connections = {};
 	static History history;
+	static const Random random;
 
 public:
 	Brain();

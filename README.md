@@ -21,3 +21,10 @@ This project is only at a Proof of Concept stage, but here are my ideas:
 - Each generation is limited to a certain number of agents
 - When a child is born, one of its great-grandparents will randomly die (to prevent population explosion. That way, the population per village is at most 3 times the maximum number of agents per generation)
 - The best performing agent will be imune to death
+- Each iteration will go as follows:
+  - A subset of the population is selected to be the talkers
+  - The talkers are grouped in very small groups (2 to 5)
+  - Each group selects the teacher (best performing agent among them)
+  - The teacher will teach the group
+  - The teacher will pick a random agent from the group and try to have a baby with it
+- Each agent will have a stuborness value, that will start of low (when just born) and will end high (when old). This stuborness value will make them more gullible (prone to accept blindly the teaching material) or stuborn (reject the teaching)

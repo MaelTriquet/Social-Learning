@@ -18,7 +18,36 @@ void Node::activate()
 	case 3:
 		value = identity(value);
 		break;
+	case 4:
+		value = 1;
+		break;
 	default:
+		break;
+	}
+}
+
+void Node::calculate_gradient(float error)
+{
+	switch (m_act_fun_idx)
+	{
+	case 0: // ReLU
+		gradient = (value > 0.0f ? 1.0f : 0.0f) * error;
+		break;
+
+	case 1: // Sigmoid
+		gradient = value * (1.0f - value) * error;
+		break;
+
+	case 2: // Tanh
+		gradient = (1.0f - value * value) * error;
+		break;
+
+	case 3: // Identity (linear)
+		gradient = error;
+		break;
+
+	default:
+		gradient = error;
 		break;
 	}
 }
@@ -64,7 +93,7 @@ void Node::forward()
 
 void Node::remove_connection(int history_idx_)
 {
-	for (int i = 0; i < (int)connections.size(); i++)
+	for (size_t i = 0; i < connections.size(); i++)
 	{
 		if (connections[i]->history_idx == history_idx_)
 		{

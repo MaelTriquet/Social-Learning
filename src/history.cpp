@@ -10,7 +10,7 @@ History::~History()
 
 int History::get_node(int from)
 {
-	for (int i = 0; i < (int)m_nodes.size(); i++)
+	for (size_t i = 0; i < m_nodes.size(); i++)
 	{
 		if (m_nodes[i] == from)
 		{
@@ -18,12 +18,12 @@ int History::get_node(int from)
 		}
 	}
 	m_nodes.push_back(from);
-	return m_nodes.size() - 1 + INPUT_SIZE + OUTPUT_SIZE;
+	return m_nodes.size() + INPUT_SIZE + OUTPUT_SIZE;
 }
 
 int History::get_connection(int from, int to)
 {
-	for (int i = 0; i < (int)m_connections.size(); i++)
+	for (size_t i = 0; i < m_connections.size(); i++)
 	{
 		if (m_connections[i].from == from && m_connections[i].to == to)
 		{

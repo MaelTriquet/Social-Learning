@@ -28,3 +28,5 @@ This project is only at a Proof of Concept stage, but here are my ideas:
   - The teacher will teach the group
   - The teacher will pick a random agent from the group and try to have a baby with it
 - Each agent will have a stuborness value, that will start of low (when just born) and will end high (when old). This stuborness value will make them more gullible (prone to accept blindly the teaching material) or stuborn (reject the teaching)
+- Give each agent 2 memories, one for the recent teaching they received, and one for the most important teaching they've ever received (the second one participate to the denying of teaching that goes against those)
+- A teacher can teach a random action, or a subset of his breakthroughs

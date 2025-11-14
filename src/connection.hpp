@@ -9,6 +9,7 @@ public:
 	Node* to;
 	float weight;
 	int history_idx;
+	float delta = 0.f;
 
 	Connection(Node* from_, Node* to_, float weight_, int history_idx_):
 		from(from_),

@@ -45,6 +45,10 @@ void Node::calculate_gradient(float error)
 	case 3: // Identity (linear)
 		gradient = error;
 		break;
+	
+	case 4: // Bias
+		gradient = 0.0f;
+		break;
 
 	default:
 		gradient = error;
@@ -87,7 +91,10 @@ float Node::identity(float x)
 
 void Node::forward()
 {
-	activate();
+	// Don't activate input layer (layer 0) - they should just pass through their values
+	if (layer != 0) {
+		activate();
+	}
 	propagate();
 }
 

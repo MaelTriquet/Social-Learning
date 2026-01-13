@@ -16,7 +16,7 @@ Brain::Brain()
 	// Add bias node
 	m_nodes.push_back(new Node(0, 4, INPUT_SIZE + OUTPUT_SIZE));
 	
-	// Add input-to-output connections for XOR problem
+	// Fully connect the input-to-output for everyone
 	for (int i = 0; i < INPUT_SIZE; i++)
 	{
 		for (int j = 0; j < OUTPUT_SIZE; j++)
@@ -50,7 +50,7 @@ void Brain::add_node(Connection* connection)
 {
 	Node* candidate = new Node(connection->from->layer + 1, RELU, Brain::history.get_node(connection->history_idx));
 
-	// if necesary, add a layer
+	// if necessary, add a layer
 	if (candidate->layer == connection->to->layer)
 	{
 		m_layers++;
@@ -65,7 +65,7 @@ void Brain::add_node(Connection* connection)
 
 	add_connection(connection->from, candidate, connection->weight);
 	add_connection(candidate, connection->to, 1);
-	add_connection(m_nodes[INPUT_SIZE + OUTPUT_SIZE], candidate, 0);
+	add_connection(m_nodes[INPUT_SIZE + OUTPUT_SIZE], candidate, 0); // connect bias node to candidate
 	
 	connection->from->remove_connection(connection->history_idx);
 
@@ -81,7 +81,6 @@ void Brain::add_node(Connection* connection)
 	}
 	delete connection;
 	m_nodes.push_back(candidate);
-
 }
 
 void Brain::add_connection(Node* from, Node* to, float weight)
@@ -92,18 +91,88 @@ void Brain::add_connection(Node* from, Node* to, float weight)
 
 void Brain::mutate()
 {
+	float rand = Random::get().rand(0, 1);
+	if (rand < MUT_ADD_NODE)
+	{
+		mutate_add_node();
+		return;
+	}
+	if (rand < MUT_ADD_CONNECTION)
+	{
+		mutate_add_connection();
+		return;
+	}
+	if (rand < MUT_WEIGHT)
+	{
+		mutate_weight();
+		return;
+	}
 }
 
 void Brain::mutate_add_node()
 {
+	// choose a random suitable connection
+	int connection_idx;
+	do {
+		connection_idx = Random::get().randint(0, m_connections.size() - 1);
+	} while (m_connections[connection_idx]->from->history_idx == INPUT_SIZE + OUTPUT_SIZE); // aka bias node
+	add_node(m_connections[connection_idx]);
+}
+
+bool Brain::fully_connected()
+{
+	int before = 0;
+	int total = 0;
+	for (int layer = 0; layer < m_layers; layer++)
+	{
+		int layer_size = 0;
+		for (Node* node : m_nodes)
+		{
+			if (node->layer == layer)
+			{
+				total += before;
+				layer_size++;
+			}
+		}
+		before += layer_size;
+	}
+	return total == (int)m_connections.size();
 }
 
 void Brain::mutate_add_connection()
 {
+	// check if the NN is already fully connected
+	if (fully_connected())
+	{
+		mutate_add_node();
+		return;
+	}
+	// choose two random suitable nodes
+	int from_idx;
+	int to_idx;
+	do {
+		from_idx = Random::get().randint(0, m_nodes.size() - 1);
+		to_idx = Random::get().randint(0, m_nodes.size() - 1);
+	} while (m_nodes[from_idx]->layer >= m_nodes[to_idx]->layer);
+	float weight = Random::get().rand(-0.5, 0.5);
+	add_connection(m_nodes[from_idx], m_nodes[to_idx], weight);
 }
 
 void Brain::mutate_weight()
 {
+	int connection_idx = Random::get().randint(0, m_connections.size() - 1);
+	if (Random::get().rand(0, 1) < 0.5)
+	{
+		// hard mutation
+		float weight = Random::get().rand(-1, 1);
+		m_connections[connection_idx]->weight = weight;
+	}
+	else
+	{
+		// soft mutation
+		float weight = m_connections[connection_idx]->weight + Random::get().rand(-0.1, 0.1);
+		m_connections[connection_idx]->weight = std::clamp(weight, -1.f, 1.f);
+	}
 }
 
 void Brain::print()

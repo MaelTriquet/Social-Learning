@@ -18,7 +18,6 @@ int main()
 	// 0	4
 	// 1	5	2
 	// 3 (bias)
-	// and is fully connected
 	
 	brain.print();
 	

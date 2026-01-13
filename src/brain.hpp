@@ -35,6 +35,7 @@ public:
 	void reset_nodes();
 	void update_weights();
 	void learn_from_example(float input[INPUT_SIZE], float target[OUTPUT_SIZE]);
+	bool fully_connected();
 	
 	void test_add_node(int connection_idx);
 	void test_add_connection(int from_idx, int to_idx, float weight);

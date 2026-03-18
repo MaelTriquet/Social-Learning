@@ -1,0 +1,27 @@
+#define MUT_ADD_NODE 0.05
+#define MUT_ADD_CONNECTION 0.05
+#define MUT_WEIGHT 0.05
+
+#define INPUT_SIZE 2
+#define OUTPUT_SIZE 1
+
+#define RELU 0
+#define SIGMOID 1
+#define TANH 2
+#define IDENTITY 3
+#define BIAS 4
+#define SIGMOID_SCALE 4.0f
+#define TANH_SCALE 2.0f
+
+#define HIDDEN_ACTIVATION TANH
+#define OUTPUT_ACTIVATION SIGMOID
+
+#define CLAMP_WEIGHTS true
+#define CLAMP 1.f
+
+#define CHAIN_SIZE 3
+#define EXAMPLE_SIZE 5
+#define GROUP_SIZE 2
+
+#define ENCODING Eigen::Matrix<float, INPUT_SIZE + 1, 1>
+#define CLUSTER_THRESHOLD 0.85f

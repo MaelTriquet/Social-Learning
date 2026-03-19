@@ -110,7 +110,7 @@ public:
 				max_staleness = agents[i]->staleness;
 			}
 		}
-		if (max_staleness < 100)
+		if (max_staleness < 300)
 			return;
 		if (agents.back() == best_agent) return;
 		Agent* agent = agents.back();
@@ -128,6 +128,7 @@ public:
 
 	void update()
 	{
+		ConceptArchive::get().compute_centroid();
 		evaluate();
 		group();
 		// std::cout << "Best fitness: " << best_fitness << std::endl;
@@ -137,8 +138,8 @@ public:
 		{
 			if (a->fitness == best_fitness) continue;
 			a->brain.age++;
-			if (a->brain.age % 10 == 0)
-				a->brain.weight_exploration();
+			// if (a->brain.age % 10 == 0)
+			// 	a->brain.weight_exploration();
 			if (a->brain.m_nodes.size() > max_nodes)
 				max_nodes = a->brain.m_nodes.size();
 		}

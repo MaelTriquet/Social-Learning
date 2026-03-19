@@ -84,7 +84,7 @@ public:
 		{
 			for (int i = 0; i < INPUT_SIZE; i++)
 			{
-				input[i] = Random::get().rand(-1, 1);
+				input[i] = Random::get().rand(0, 1);
 			}
 			brain.feedforward(input, output);
 			other->brain.backpropagate(input, output);

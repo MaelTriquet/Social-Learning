@@ -51,7 +51,7 @@ double Renderer::rotate = 0.0;
 // Shapes
 void Renderer::circle(sf::Vector2f position, double radius)
 {
-		sf::CircleShape circle(radius);
+		sf::CircleShape circle(radius, Renderer::nb_points);
 
 		if (center_mode == CORNER)
 			circle.setPosition(position);
@@ -69,7 +69,6 @@ void Renderer::circle(sf::Vector2f position, double radius)
 			circle.setOutlineThickness(stroke_width);
 		}
 
-		circle.setPointCount(nb_points);
 		window->draw(circle);
 }
 

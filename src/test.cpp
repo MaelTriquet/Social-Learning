@@ -20,7 +20,7 @@ void test_xor(bool verbose, int tries)
 	float output[OUTPUT_SIZE];
 	for (int _ = 0; _ < tries; _++)
 	{
-		bool success = true;
+		bool success = false;
 		Random::get().rand();
 		Brain brain;
 		create_xor_brain(brain);
@@ -36,24 +36,28 @@ void test_xor(bool verbose, int tries)
 		{
 			// sf::sleep(sf::seconds(0.1));
 			// if (!Renderer::loop()) break;
-			if (frames++ % 10000 == 0)
-				brain.weight_exploration();
+			if (frames++ > 10000)
+				break;
+				// brain.weight_exploration();
 			Renderer::background();
 			draw(brain, Renderer::width, Renderer::height, 0, 0);
 			for (int i = 0; i < 4; i++)
 				brain.backpropagate(inputs[i], targets[i]);
-			brain.update_weights(0.1, 4);
-			std::cout << "Brain output:" << std::endl;
+			brain.update_weights(0.3, 4);
+			// std::cout << "Brain output:" << std::endl;
 			succeeded = true;
 			for (int i = 0; i < 4; i++)
 			{
 				brain.feedforward(inputs[i], output);
-				std::cout << inputs[i][0] << inputs[i][1] << " => " << output[0] << std::endl;
+				// std::cout << inputs[i][0] << inputs[i][1] << " => " << output[0] << std::endl;
 				if (output[0] - targets[i][0] > 0.3f || output[0] - targets[i][0] < -0.3f)
 					succeeded = false;
 			}
 			if (succeeded)
+			{
+				success = true;
 				break;
+			}
 		}
 		std::cout << "Number of frames: " << frames << std::endl;
 
@@ -161,7 +165,6 @@ void test_small_population(bool verbose)
 	int n = 6;
 	int m = 6;
 	Population population(n*m);
-	create_xor_brain(population.best_agent->brain);
 	while (Renderer::loop())
 	{
 		// sf::sleep(sf::seconds(.1));
@@ -178,27 +181,27 @@ void test_small_population(bool verbose)
 					Renderer::rectangle(sf::Vector2f(i*Renderer::width/n, j*Renderer::height/m), Renderer::width/n, Renderer::height/m);
 					Renderer::center_mode = CENTER;
 				}
-				draw(population.ordered_agents[i*m + j]->brain, Renderer::width/n, Renderer::height/m, i*Renderer::width/n, j*Renderer::height/m);
+				// draw(population.ordered_agents[i*m + j]->brain, Renderer::width/n, Renderer::height/m, i*Renderer::width/n, j*Renderer::height/m);
 			}
 		}
 		population.update();
 		// if (population.best_fitness > .7)
 		// 	break;
 	}
-	std::sort(population.agents.begin(), population.agents.end(), [](Agent* a, Agent* b) { return a->fitness > b->fitness; });
-	for (int i = 0; i < 4; i++)
-	{
-		population.best_agent = population.agents[i];
-		population.end();
-		while (Renderer::loop())
-		{
-			// sf::sleep(sf::seconds(1));
-			Renderer::background();
-			draw(population.agents[i]->brain);
-			// if (population.best_fitness > .7)
-			// 	break;
-		}
-	}
+	// std::sort(population.agents.begin(), population.agents.end(), [](Agent* a, Agent* b) { return a->fitness > b->fitness; });
+	// for (int i = 0; i < 4; i++)
+	// {
+	// 	population.best_agent = population.agents[i];
+	// 	population.end();
+	// 	while (Renderer::loop())
+	// 	{
+	// 		// sf::sleep(sf::seconds(1));
+	// 		Renderer::background();
+	// 		draw(population.agents[i]->brain);
+	// 		// if (population.best_fitness > .7)
+	// 		// 	break;
+	// 	}
+	// }
 	population.end();
 }
 

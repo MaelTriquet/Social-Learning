@@ -81,14 +81,12 @@ void Brain::add_node(Connection* connection)
 	delete connection;
 	m_nodes.push_back(candidate);
 	sort_nodes();
-	update_encoding();
 }
 
 void Brain::add_connection(Node* from, Node* to, float weight)
 {
 	m_connections.push_back(new Connection(from, to, weight));
 	to->connections.push_back(m_connections.back());
-	update_encoding();
 }
 
 bool Brain::fully_connected()
@@ -179,16 +177,18 @@ void Brain::backpropagate(float input[INPUT_SIZE], float target[OUTPUT_SIZE])
         n->delta = error * n->derivative();
     }
 
-    // --- 4. Backpropagate deltas (reverse order) ---
+    // --- 4. Backpropagate deltas through hidden nodes (reverse order) ---
     for (int i = (int)m_ordered_nodes.size() - 1; i >= 0; i--)
     {
         Node* n = m_ordered_nodes[i];
-        if (n == m_bias) continue;
+        if (n->depth_index == 0) continue; // skip input/bias layer
+        if (n->delta == 0.0f) continue;    // no signal to propagate
 
-        // Accumulate gradient into predecessors via incoming connections
-        for (Connection* c : n->connections) // incoming to n
-            if (c->from != m_bias)
-                c->from->delta += c->weight * c->from->derivative();
+        for (Connection* c : n->connections)
+        {
+            if (c->from->depth_index == 0) continue; // don't propagate to input/bias
+            c->from->delta += c->weight * n->delta * c->from->derivative();
+        }
     }
 
     // --- 5. Accumulate gradients ---
@@ -242,7 +242,6 @@ void Brain::weight_exploration()
 		if (CLAMP_WEIGHTS)
 			c->weight = std::clamp(c->weight, -CLAMP, CLAMP);
 	}
-	update_encoding();
 }
 
 void Brain::distance_score(ENCODING chain[CHAIN_SIZE], int initial_depth, std::vector<float>& distances)
@@ -508,6 +507,7 @@ void Brain::decide_action()
 			weight_exploration();
 		return add_node_random();
 	}
+	update_encoding();
 }
 
 void Brain::weight_alignment(Node* anchor, ENCODING residual)
@@ -546,7 +546,6 @@ void Brain::weight_alignment(Node* anchor, ENCODING residual)
     if (CLAMP_WEIGHTS)
         max_connection->weight = std::clamp(max_connection->weight, -CLAMP, CLAMP);
 
-    update_encoding();
 }
 
 void Brain::add_connection(Node* anchor, ENCODING residual)
@@ -598,7 +597,6 @@ void Brain::add_connection(Node* anchor, ENCODING residual)
         w = std::clamp(w, -CLAMP, CLAMP);
 
     add_connection(best_candidate, anchor, w);
-    update_encoding();
 }
 
 void Brain::add_node(Node* anchor, ENCODING residual)

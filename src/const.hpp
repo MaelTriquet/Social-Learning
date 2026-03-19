@@ -14,9 +14,9 @@
 #define TANH_SCALE 2.0f
 
 #define HIDDEN_ACTIVATION TANH
-#define OUTPUT_ACTIVATION SIGMOID
+#define OUTPUT_ACTIVATION TANH
 
-#define CLAMP_WEIGHTS true
+#define CLAMP_WEIGHTS false
 #define CLAMP 1.f
 
 #define CHAIN_SIZE 3

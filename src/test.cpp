@@ -181,8 +181,8 @@ void test_population(bool verbose)
 void test_small_population(bool verbose)
 {
 	Renderer::init(800, 800);
-	int n = 2;
-	int m = 1;
+	int n = 6;
+	int m = 6;
 	Population population(n*m);
 	int count = 0;
 	create_xor_brain(population.agents[0]->brain);

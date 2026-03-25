@@ -35,13 +35,40 @@ Brain::Brain()
 	update_encoding();
 }
 
+Brain::Brain(const Brain& copy)
+{
+	m_layers = copy.m_layers;
+	m_bias = copy.m_bias;
+	for (Node* n : copy.m_nodes)
+		m_nodes.push_back(new Node(*n));
+	for (int i = 0; i < copy.m_nodes.size(); i++)
+	{
+		Node* n = copy.m_nodes[i];
+		for (Connection* c : n->connections)
+		{
+			for (int j = 0; j < copy.m_nodes.size(); j++)
+			{
+				Node* n2 = copy.m_nodes[j];
+				if (n2 == c->from)
+				{
+					add_connection(m_nodes[j], m_nodes[i], c->weight);
+					break;
+				}
+			}
+		}
+	}
+	sort_nodes();
+	// update_encoding();
+
+}
+
 Brain::~Brain()
 {
 	for (auto connection : m_connections)
 		delete connection;
 	for (auto node : m_nodes)
 	{
-		// ConceptArchive::get().remove(node, node->depth_index);
+		ConceptArchive::get().remove(node);
 		delete node;
 	}
 }
@@ -235,12 +262,12 @@ void Brain::update_encoding()
 
 void Brain::add_node_random()
 {
-	Connection* connection;
-	do
-	{
-		connection = m_connections[Random::get().rand(0, m_connections.size() - 1)];
-	} while (connection->from == m_bias);
-	add_node(connection);
+	// Connection* connection;
+	// do
+	// {
+	// 	connection = m_connections[Random::get().rand(0, m_connections.size() - 1)];
+	// } while (connection->from == m_bias);
+	// add_node(connection);
 }
 
 // Returns {p_weight_alignment, p_add_connection, p_add_node_target, p_add_node_random}
@@ -248,18 +275,19 @@ void Brain::add_node_random()
 
 void Brain::weight_exploration()
 {
-	float exploration_magnitude = std::exp(-age / 30.0f);
-	exploration_magnitude = 1.0f;
-	// for (Connection* c : m_connections)
-	// {
-	// 	c->weight += Random::get().rand(-0.1f, 0.1f) * exploration_magnitude;
-	// 	if (CLAMP_WEIGHTS)
-	// 		c->weight = std::clamp(c->weight, -CLAMP, CLAMP);
-	// }
-	int index = Random::get().randint(0, m_connections.size());
-	m_connections[index]->weight += Random::get().rand(-0.1f, 0.1f) * exploration_magnitude;
-	if (CLAMP_WEIGHTS)
-		m_connections[index]->weight = std::clamp(m_connections[index]->weight, -CLAMP, CLAMP);
+	// float exploration_magnitude = std::exp(-age / 30.0f);
+	// exploration_magnitude = 1.0f;
+	// // for (Connection* c : m_connections)
+	// // {
+	// // 	c->weight += Random::get().rand(-0.1f, 0.1f) * exploration_magnitude;
+	// // 	if (CLAMP_WEIGHTS)
+	// // 		c->weight = std::clamp(c->weight, -CLAMP, CLAMP);
+	// // }
+	// int index = Random::get().randint(0, m_connections.size());
+	// m_connections[index]->weight += Random::get().rand(-0.1f, 0.1f) * exploration_magnitude;
+	// if (CLAMP_WEIGHTS)
+	// 	m_connections[index]->weight = std::clamp(m_connections[index]->weight, -CLAMP, CLAMP);
+	// std::cout << "FUCK" << std::endl;
 }
 
 void Brain::distance_score(ENCODING chain[CHAIN_SIZE], int initial_depth, std::vector<float>& distances)
@@ -444,99 +472,14 @@ void Brain::decide_action()
     const ResonanceResult& res = m_resonance[best_target_idx];
 
 
-    // ================================================================
-    // STEP 3: Compute raw scores for each action
-    // ================================================================
-
-    // --- Weight alignment ---
-    // Good when: high resonance (anchor is close),
-    //            high best_conn_similarity (existing connection can be nudged),
-    //            low residual (small gap to close)
-    float score_wa = res.resonance_score
-                   * res.best_conn_similarity
-                   * (1.0f - res.residual_magnitude);
-
-    // --- Add connection ---
-    // Good when: meaningful residual exists (something to add),
-    //            but existing connections are saturated (wa won't help much),
-    //            and best_conn_similarity is low (no existing conn covers residual)
-    float score_ac = res.residual_magnitude
-                   * (1.0f - res.best_conn_similarity)
-                   * res.resonance_score; // still need anchor to exist
-
-    // --- Add node from target ---
-    // Good when: large residual (concept is foreign),
-    float score_an_target = res.residual_magnitude
-						   * (1.0f - res.resonance_score)
-						   * (1.0f - res.best_conn_similarity);
-
-    // --- Add node random (refusal) ---
-    // Good when: low resonance overall,
-    //            would change a high importance node
-	// Should be rare overall
-    float score_an_random = ((1.0f - res.resonance_score) + (1.0f - res.anchor->importance_score)) * 0.05f;
-
-    // ================================================================
-    // STEP 5: Softmax with temperature
-    // ================================================================
-
-    std::array<float, 4> raw = {
-        score_wa,
-        score_ac,
-        score_an_target,
-        score_an_random
-    };
-
-    const float TEMPERATURE = 0.3f;
-    float max_val = *std::max_element(raw.begin(), raw.end());
-    float sum = 0.0f;
-    for (float v : raw)
-        sum += std::exp((v - max_val) / TEMPERATURE);
-
-    for (int i = 0; i < 4; i++)
-        raw[i] = std::exp((raw[i] - max_val) / TEMPERATURE) / sum;
-
-    // ================================================================
-    // STEP 6: Sample action
-    // ================================================================
-
-    float roll = Random::get().rand(0.0f, 1.0f);
-    float cumulative = 0.0f;
-	int action = 3; // default to add_node_random
-    for (int i = 0; i < 4; i++)
-    {
-        cumulative += raw[i];
-        if (roll < cumulative)
-        {
-            action = i;
-            break;
-        }
-    }
-	Global::get().interactions++;
-	switch (action)
-	{
-	case 0:
-		Global::get().weight_alignment++;
-		return weight_alignment(res.anchor, res.residual);
-	case 1:
-		Global::get().add_connection++;
-		return add_connection(res.anchor, res.residual);
-	case 2:
-		Global::get().add_node++;
-		return add_node(res.anchor, res.residual);
-	case 3:
-		if (Random::get().rand(0, 1) < 0.99)
-		{
-			Global::get().weight_exploration++;
-			weight_exploration();
-		} else
-			Global::get().add_node_random++;
-		return add_node_random();
-	}
+	if (Random::get().rand(0, 1) < 0.7)
+		add_connection(res.anchor, res.residual);
+	else
+		add_node(res.anchor, res.residual);
 	update_encoding();
 }
 
-void Brain::weight_alignment(Node* anchor, ENCODING residual)
+void Brain::weight_alignment(Node* anchor, ENCODING residual, float step)
 {
     // --- 1. Find incoming connection best aligned with residual ---
     float max_pred_scalar = -1.0f;
@@ -565,9 +508,7 @@ void Brain::weight_alignment(Node* anchor, ENCODING residual)
 
     // --- 3. Age-scaled partial step toward optimal ---
     // Young agents take bigger steps, old agents nudge carefully
-    float step = std::exp(-(float)age / 30.0f); // 1.0 when young, approaches 0 when old
-    float noise = Random::get().rand(-0.1f, 0.1f) * step;
-    max_connection->weight += step * (x_optimal - max_connection->weight) + noise;
+    max_connection->weight += step * (x_optimal - max_connection->weight);
 
     if (CLAMP_WEIGHTS)
         max_connection->weight = std::clamp(max_connection->weight, -CLAMP, CLAMP);
@@ -616,6 +557,7 @@ void Brain::add_connection(Node* anchor, ENCODING residual)
 
     // --- 4. Age-scaled partial step toward optimal ---
     float step  = std::exp(-(float)age / 30.0f);
+	step = 1;
     float noise = Random::get().rand(-0.1f, 0.1f) * step;
     float w     = step * x_optimal + noise;
 

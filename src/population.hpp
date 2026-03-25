@@ -12,6 +12,7 @@ public:
 	std::vector<Agent*> agents = {};
 	std::vector<Agent*> ordered_agents = {};
 	std::vector<Group> groups = {};
+	std::vector<Agent> books = {};
 	int size = 0;
 	int generation = 0;
 	float best_fitness = 0;
@@ -88,6 +89,9 @@ public:
 				best_agent->brain.best = true;
 				std::cout << "Best fitness: " << best_fitness
 						  << " at generation " << generation << std::endl;
+				books.emplace_back(*a);
+				for (Node* n : books.back().brain.m_nodes)
+					ConceptArchive::get().update_cluster(n, n->depth_index);
 			}
 		}
 	}
@@ -118,37 +122,33 @@ public:
 					} while (other == a);
 				}
 
-				float random = Random::get().rand(0, a->fitness + other->fitness);
-				if (a == best_agent)
-					a->teach(other);
-				else if (other == best_agent)
-					other->teach(a);
-				else if (random < a->fitness)
-					a->teach(other);
+				if (Random::get().rand(0, 1) < 0.1)
+				{
+					float random = Random::get().rand(0, a->fitness + other->fitness);
+					if (a == best_agent)
+						a->teach(other);
+					else if (other == best_agent)
+						other->teach(a);
+					else if (random < a->fitness)
+						a->teach(other);
+					else
+						other->teach(a);
+				}
 				else
-					other->teach(a);
+				{
+					a->debate(other);
+				}
 			}
 		}
 	}
 
 	void life_cycle()
 	{
-		Random::get().shuffle(agents);
 		float a = Random::get().rand();
 		if (a < 0.8)
 			return;
-		int max_staleness = 0;
-		int index = -1;
-		for (int i = 0; i < size; i++)
-		{
-			if (agents[i]->staleness > max_staleness)
-			{
-				index = i;
-				max_staleness = agents[i]->staleness;
-			}
-		}
-		if (max_staleness < 300)
-			return;
+		int index = Random::get().randint(0, agents.size());
+		if (agents[index]->staleness > 300) return;
 		bool best = false;
 		for (Group& g : groups)
 			if (g.getBestAgent() == agents[index])
@@ -158,6 +158,7 @@ public:
 			}
 		if (best) return;
 		Agent* agent = agents[index];
+		if (agent == best_agent) return;
 		int i;
 		for (i = 0; i < size; i++)
 		{
@@ -229,12 +230,14 @@ public:
 		}
 		// std::cout << "Groups: " << groups.size() << std::endl;
 		ConceptArchive::get().compute_centroid();
+		// std::cout << "Clusters: " << ConceptArchive::get().m_clusters.size() << " at generation " << generation << std::endl;
 		evaluate();
 		group();
 	}
 
 	void end()
 	{
+		best_agent = &books[books.size() - 1];
 		std::cout << "Simulation Over" << std::endl;
 		std::cout << "Best agent's fitness: " << best_agent->fitness << std::endl;
 		int n_cases = 1 << INPUT_SIZE; // 2^INPUT_SIZE

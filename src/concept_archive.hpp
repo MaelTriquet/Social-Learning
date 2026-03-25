@@ -4,40 +4,36 @@
 #include <Eigen/Dense>
 #include <cmath>
 #include "node.hpp"
+#include "index_vector.hpp"
+#include <iostream>
 
 class ConceptCluster {
 private:
-	int nb_transmitions = 0;
-	float transmission_success = 0.0f;
-	ENCODING m_centroid = ENCODING::Zero();
+	ENCODING m_centroid;
 
 
 	bool inside(Node* node)
 	{
-		return std::abs(m_centroid.dot(node->encoding.normalized())) < CLUSTER_THRESHOLD;
+		return std::abs(m_centroid.dot(node->encoding.normalized())) > CLUSTER_THRESHOLD;
 	}
-
+	bool modified = false;
 
 public:
 
-	std::vector<Node*> m_nodes = {};
-	bool remove(Node* node)
+	siv::ID id = -1;
+	siv::Vector<Node*> m_nodes = {};
+	int depth;
+	void remove(Node* node)
 	{
-		bool found = false;
-		for (int i = 0; i < m_nodes.size(); i++)
-		{
-			Node* n = m_nodes[i];
-			if (n == node)
-			{
-				m_nodes[i] = m_nodes.back();
-				m_nodes.pop_back();
-				found = true;
-			}
-		}
-		return found;
+		m_nodes.erase(node->id);
+		node->id = -1;
+		node->cluster_id = -1;
+		modified = true;
 	}
 
 	void compute_centroid() {
+		if (!modified) return;
+		modified = false;
 		m_centroid *= 0;
 		int count = 0;
 		for (Node* node : m_nodes)
@@ -52,153 +48,105 @@ public:
 	}
 
 
-	ConceptCluster(Node* node)
+	ConceptCluster(Node* node, int depth_):
+		m_centroid(node->encoding.normalized())
 	{
-		m_nodes.push_back(node);
-		m_centroid = node->encoding.normalized();
+		node->id = m_nodes.push_back(node);
+		depth = depth_;
 	}
 
-	bool contains(Node* node)
+	bool contains(Node* node, int node_depth)
 	{
-		for (int i = 0; i < m_nodes.size(); i++)
+		if (depth != node_depth) return false;
+		if (inside(node))
 		{
-			Node* n = m_nodes[i];
-			if (n == node)
-			{
-				if (inside(node))
-					return true;
-				m_nodes[i] = m_nodes.back();
-				m_nodes.pop_back();
-				return false;
-			}
+			node->id = m_nodes.push_back(node);
+			modified = true;
+			return true;
 		}
-		if (!inside(node))
-			return false;
-		node->novelty_score = 1;
-		m_nodes.push_back(node);
-		return true;
+		return false;
 	}
 
-	void add_transmission(Node* result)
+	bool still_contains(Node* node, int node_depth)
 	{
-		nb_transmitions++;
-		for (Node* node : m_nodes)
-		{
-			if (node == result)
-			{
-				transmission_success++;
-				return;
-			}
-		}
+		if (depth == node_depth && inside(node))
+			return true;
+		m_nodes.erase(node->id);
+		for (Node* n : m_nodes)
+			if (node == n)
+				std::cout << "Fuck\n";
+		node->id = -1;
+		modified = true;
+		return false;
 	}
 
-	float originality_score(Node* node)
+	bool empty()
 	{
-		int i;
-		for (i = 0; i < m_nodes.size(); i++)
-		{
-			if (m_nodes[i] == node)
-				break;
-		}
-
-		if (i == m_nodes.size())
-			// not supposed to happen, the node should be in the cluster
-			return 0.0f;
-		return 1.0f / std::log(i + 1);
+		return m_nodes.empty();
 	}
-
-	float transmission_score()
-	{
-		return transmission_success / (float)nb_transmitions;
-	}
-
 };
 
 class ConceptArchive {
-private:
-	std::vector<std::vector<ConceptCluster>> m_clusters = std::vector<std::vector<ConceptCluster>>();
-	Node* cached_node = nullptr;
-	float cached_originality_score = 0.0f;
-	float cached_transmission_score = 0.0f;
 public:
-
-    ConceptArchive(const ConceptArchive&) = delete;
-    ConceptArchive& operator=(const ConceptArchive&) = delete;
+	siv::Vector<ConceptCluster> m_clusters;
+	std::vector<std::vector<siv::ID>> depths;
 	ConceptArchive() = default;
 	~ConceptArchive() = default;
-
-
-    static ConceptArchive& get()
-    {
-        static ConceptArchive instance;
-        return instance;
-    }
-
-	ConceptCluster& find_cluster(Node* node, int depth)
+	ConceptArchive(const ConceptArchive&) = delete;
+	ConceptArchive& operator=(const ConceptArchive&) = delete;
+	static ConceptArchive& get()
 	{
-		if (m_clusters.size() <= depth)
+		static ConceptArchive instance;
+		return instance;
+	}
+
+	void update_cluster(Node* node, int depth)
+	{
+		if (node->cluster_id != -1 && m_clusters[node->cluster_id].still_contains(node, depth))
+			// Node is already in the right cluster
+			return;
+		if (node->cluster_id != -1)
 		{
-			m_clusters.push_back(std::vector<ConceptCluster>());
+			ConceptCluster& cluster = m_clusters[node->cluster_id];
 		}
-		int index = -1;
-		for (int i = 0; i < m_clusters[depth].size(); i++)
+
+		// Find the right cluster
+		while (depth >= depths.size())
+			depths.push_back(std::vector<siv::ID>());
+		for (auto id : depths[depth])
 		{
-			if (m_clusters[depth][i].contains(node))
+			ConceptCluster& cluster = m_clusters[id];
+			if (cluster.contains(node, depth))
 			{
-				cached_node = node;
-				cached_originality_score = m_clusters[depth][i].originality_score(node);
-				cached_transmission_score = m_clusters[depth][i].transmission_score();
-				index = i;
+				node->cluster_id = cluster.id;
+				return;
 			}
 		}
-		if (index >= 0)
-			return m_clusters[depth][index];
-		node->novelty_score = 1;
-		m_clusters[depth].push_back(ConceptCluster(node));
-		cached_node = node;
-		cached_originality_score = m_clusters[depth].back().originality_score(node);
-		cached_transmission_score = m_clusters[depth].back().transmission_score();
-		return m_clusters[depth].back();
-	}
-
-	float get_originality_score(Node* node, int depth)
-	{
-		if (cached_node == node)
-			return cached_originality_score;
-		cached_node = node;
-		ConceptCluster& cluster = find_cluster(node, depth);
-		cached_originality_score = cluster.originality_score(node);
-		cached_transmission_score = cluster.transmission_score();
-		return cached_originality_score;
-	}
-
-	float get_transmission_score(Node* node, int depth)
-	{
-		if (cached_node == node)
-			return cached_transmission_score;
-		cached_node = node;
-		ConceptCluster& cluster = find_cluster(node, depth);
-		cached_originality_score = cluster.originality_score(node);
-		cached_transmission_score = cluster.transmission_score();
-		return cached_transmission_score;
-	}
-
-	void add_transmission(Node* target, Node* result, int depth)
-	{
-		find_cluster(target, depth).add_transmission(result);
+		// No cluster found, create a new one
+		siv::ID cluster_id = m_clusters.emplace_back(node, depth);
+		m_clusters[cluster_id].id = cluster_id;
+		node->cluster_id = cluster_id;
+		depths[depth].push_back(cluster_id);
 	}
 
 	void compute_centroid()
 	{
-		for (auto& depth : m_clusters)
-			for (ConceptCluster& cluster : depth)
-				cluster.compute_centroid();
+		for (ConceptCluster& cluster : m_clusters)
+		{
+			cluster.compute_centroid();
+		}
 	}
 
-	void remove(Node* node, int depth_index)
+	void remove(Node* node)
 	{
-		auto& depth = m_clusters[depth_index];
-		for (ConceptCluster& cluster : depth)
-			cluster.remove(node);
+		if (node->cluster_id == -1)
+			return;
+		m_clusters[node->cluster_id].remove(node);
+		for (ConceptCluster& cluster : m_clusters)
+		{
+			for (Node* n : cluster.m_nodes)
+				if (n == node)
+					std::cout << "Node " << n->id << " is in cluster " << cluster.id << std::endl;
+		}
 	}
 };

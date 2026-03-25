@@ -4,12 +4,12 @@
 #include <cmath>
 #include "const.hpp"
 #include <Eigen/Dense>
+#include "index_vector.hpp"
 
 
 class Node
 {
 private:
-	int m_act_fun_idx;
 	void activate();
 	void propagate();
 	float relu(float x);
@@ -22,6 +22,7 @@ private:
 	float d_identity(float x);
 
 public:
+	int m_act_fun_idx;
 	int depth_index;
 	float value = 0;
 	float delta = 0.0f;
@@ -30,6 +31,8 @@ public:
 	float community_score = 0;
 	float originality_score = 0;
 	float importance_score = 0;
+	siv::ID cluster_id = -1;
+	siv::ID id = -1;
 	ENCODING encoding = ENCODING::Zero();
 	// Holds the connections that are incoming to this node
 	std::vector<Connection*> connections{};
@@ -45,6 +48,8 @@ public:
 		m_act_fun_idx(act_fun_idx),
 		depth_index(depth_index_)
 	{}
+
+	Node(const Node& copy);
 
 	void forward();
 	float derivative();

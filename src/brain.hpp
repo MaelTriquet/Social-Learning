@@ -38,6 +38,7 @@ public:
 	int max_size = 0;
 	int age = 0;
 	Brain();
+	Brain(const Brain& copy);
 	~Brain();
 
 	void add_node(Connection* connection);
@@ -60,7 +61,7 @@ public:
 	void weight_exploration();
 	void interpret_chain(const ENCODING chain[CHAIN_SIZE], int initial_depth);
 	void decide_action();
-	void weight_alignment(Node* anchor, ENCODING residual);
+	void weight_alignment(Node* anchor, ENCODING residual, float step);
 	void add_connection(Node* anchor, ENCODING residual);
 	void add_node(Node* anchor, ENCODING residual);
 	Brain* copy();

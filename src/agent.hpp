@@ -12,6 +12,7 @@ class Agent
 public:
 	Brain brain;
 	float fitness = 0;
+	bool book = false;
 	float input[INPUT_SIZE] = {0};
 	float output[OUTPUT_SIZE] = {0};
 	float best_fitness = 0;
@@ -32,6 +33,14 @@ public:
 		community_personality = Random::get().rand();
 		novelty_personality = Random::get().rand();
 		utility_personality = Random::get().rand();
+	}
+
+	Agent(const Agent& copy):
+		brain(copy.brain)
+	{
+		fitness = copy.fitness;
+		book = true;
+		best_fitness = copy.best_fitness;
 	}
 
 	void fitness_function()
@@ -85,9 +94,42 @@ public:
 			staleness++;
 	}
 
+	void debate(Agent* other)
+	{
+		Node* this_node = nullptr;
+		Node* other_node = nullptr;
+		float highest_difference = 0;
+		for (Node* n : brain.m_ordered_nodes)
+		{
+			if (n->depth_index == 0) continue;
+			Node* same = nullptr;
+			for (Node* o : other->brain.m_ordered_nodes)
+			{
+				if (o->depth_index == 0) continue;
+				if (o->cluster_id == n->cluster_id)
+				// If o and n represent the same concept
+				{
+					same = o;
+					break;
+				}
+			}
+			if (same == nullptr) continue;
+			float diff = 1 - std::abs(n->encoding.dot(same->encoding));
+			if (diff > highest_difference)
+			{
+				highest_difference = diff;
+				this_node = n;
+				other_node = same;
+			}
+		}
+		if (this_node == nullptr || other_node == nullptr) return; // No shared concept to debate about, skip for now
+		brain.weight_alignment(this_node, other_node->encoding - this_node->encoding, 0.1f);
+		other->brain.weight_alignment(other_node, this_node->encoding - other_node->encoding, 0.1f);
+	}
+
 	void teach(Agent* other)
 	{
-		// update_score();
+		update_score();
 		brain.update_encoding();
 		Node* n = select_transmission_node(other->brain.m_layers);
 		std::vector<ENCODING> chain_vectors;
@@ -126,10 +168,7 @@ public:
 	{
 		for (Node* n : brain.m_ordered_nodes)
 		{
-			// n->novelty_score *= .99f;
-			// n->originality_score = ConceptArchive::get().get_originality_score(n, n->depth_index);
-			n->importance_score = n->originality_score * originality_personality + n->novelty_score * novelty_personality + n->utility_score * utility_personality + n->community_score * community_personality;
-			n->importance_score /= 2.0f;
+			ConceptArchive::get().update_cluster(n, n->depth_index);
 		}
 	}
 
@@ -171,4 +210,3 @@ public:
 		return candidates.back();
 	}
 };
-	

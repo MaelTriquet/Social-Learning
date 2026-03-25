@@ -1,5 +1,12 @@
 #include "node.hpp"
 
+Node::Node(const Node& copy)
+{
+	depth_index = copy.depth_index;
+	encoding = copy.encoding;
+	m_act_fun_idx = copy.m_act_fun_idx;
+}
+
 void Node::activate()
 {
 	// check the m_act_fun_idx value and run the corresponding function

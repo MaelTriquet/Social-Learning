@@ -1,3 +1,5 @@
+#include "encoding.hpp"
+
 #define MUT_ADD_NODE 0.05
 #define MUT_ADD_CONNECTION 0.05
 #define MUT_WEIGHT 0.05
@@ -14,14 +16,17 @@
 #define TANH_SCALE 2.0f
 
 #define HIDDEN_ACTIVATION TANH
-#define OUTPUT_ACTIVATION TANH
+#define OUTPUT_ACTIVATION SIGMOID
 
-#define CLAMP_WEIGHTS false
+#define CLAMP_WEIGHTS true
 #define CLAMP 1.f
 
 #define CHAIN_SIZE 3
 #define EXAMPLE_SIZE 5
 #define GROUP_SIZE 2
 
-#define ENCODING Eigen::Matrix<float, INPUT_SIZE + 1, 1>
+#define ENCODING Encoding<INPUT_SIZE + 1>
 #define CLUSTER_THRESHOLD 0.85f
+#define GROUP_THRESHOLD 30000.3f
+
+#define INSIDE_GROUP_PROBABILITY 0.95f

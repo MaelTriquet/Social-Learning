@@ -7,7 +7,6 @@
 
 class ConceptCluster {
 private:
-	std::vector<Node*> m_nodes = {};
 	int nb_transmitions = 0;
 	float transmission_success = 0.0f;
 	ENCODING m_centroid = ENCODING::Zero();
@@ -20,6 +19,23 @@ private:
 
 
 public:
+
+	std::vector<Node*> m_nodes = {};
+	bool remove(Node* node)
+	{
+		bool found = false;
+		for (int i = 0; i < m_nodes.size(); i++)
+		{
+			Node* n = m_nodes[i];
+			if (n == node)
+			{
+				m_nodes[i] = m_nodes.back();
+				m_nodes.pop_back();
+				found = true;
+			}
+		}
+		return found;
+	}
 
 	void compute_centroid() {
 		m_centroid *= 0;
@@ -39,24 +55,26 @@ public:
 	ConceptCluster(Node* node)
 	{
 		m_nodes.push_back(node);
-		m_centroid = node->encoding;
+		m_centroid = node->encoding.normalized();
 	}
 
 	bool contains(Node* node)
 	{
-		for (Node* n : m_nodes)
+		for (int i = 0; i < m_nodes.size(); i++)
 		{
+			Node* n = m_nodes[i];
 			if (n == node)
 			{
 				if (inside(node))
 					return true;
-				std::swap(n, m_nodes.back());
+				m_nodes[i] = m_nodes.back();
 				m_nodes.pop_back();
 				return false;
 			}
 		}
 		if (!inside(node))
 			return false;
+		node->novelty_score = 1;
 		m_nodes.push_back(node);
 		return true;
 	}
@@ -109,6 +127,7 @@ public:
 	ConceptArchive() = default;
 	~ConceptArchive() = default;
 
+
     static ConceptArchive& get()
     {
         static ConceptArchive instance;
@@ -121,6 +140,7 @@ public:
 		{
 			m_clusters.push_back(std::vector<ConceptCluster>());
 		}
+		int index = -1;
 		for (int i = 0; i < m_clusters[depth].size(); i++)
 		{
 			if (m_clusters[depth][i].contains(node))
@@ -128,9 +148,12 @@ public:
 				cached_node = node;
 				cached_originality_score = m_clusters[depth][i].originality_score(node);
 				cached_transmission_score = m_clusters[depth][i].transmission_score();
-				return m_clusters[depth][i];
+				index = i;
 			}
 		}
+		if (index >= 0)
+			return m_clusters[depth][index];
+		node->novelty_score = 1;
 		m_clusters[depth].push_back(ConceptCluster(node));
 		cached_node = node;
 		cached_originality_score = m_clusters[depth].back().originality_score(node);
@@ -170,5 +193,12 @@ public:
 		for (auto& depth : m_clusters)
 			for (ConceptCluster& cluster : depth)
 				cluster.compute_centroid();
+	}
+
+	void remove(Node* node, int depth_index)
+	{
+		auto& depth = m_clusters[depth_index];
+		for (ConceptCluster& cluster : depth)
+			cluster.remove(node);
 	}
 };

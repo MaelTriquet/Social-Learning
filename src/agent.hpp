@@ -18,7 +18,9 @@ public:
 	int staleness = 0;
 	float score = 0;
 	float originality_personality = 0.f;
-	float transmission_personality = 0.f;
+	float community_personality = 0.f;
+	float novelty_personality = 0.f;
+	float utility_personality = 0.f;
 	ENCODING chain[CHAIN_SIZE];
 	
 	Agent():
@@ -27,21 +29,53 @@ public:
 		for (int j = 0; j < CHAIN_SIZE; j++)
 			chain[j] = ENCODING::Zero();
 		originality_personality = Random::get().rand();
-		transmission_personality = 1 - originality_personality;
-
+		community_personality = Random::get().rand();
+		novelty_personality = Random::get().rand();
+		utility_personality = Random::get().rand();
 	}
 
 	void fitness_function()
 	{
-		float inputs[4][INPUT_SIZE] = {{0,0},{0,1},{1,0},{1,1}};
-		float targets[4][OUTPUT_SIZE] = {{0},{1},{1},{0}};
+		int n_cases = 1 << INPUT_SIZE; // 2^INPUT_SIZE
+
 		float error = 0;
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < n_cases; i++)
 		{
-			brain.feedforward(inputs[i], output);
-			error += std::abs(output[0] - targets[i][0]);
+			// Generate input from binary representation of i
+			int ones = 0;
+			for (int j = 0; j < INPUT_SIZE; j++)
+			{
+				input[j] = (i >> j) & 1;
+				ones += input[j];
+			}
+			float target = ones % 2 == 1 ? 1.0f : 0.0f;
+
+			brain.feedforward(input, output);
+			error += std::abs(output[0] - target);
 		}
-		fitness = 1 / (1 + error * error);
+		float fitness_float = 1 / (1 + error * error);
+		int correct = 0;
+		for (int i = 0; i < n_cases; i++)
+		{
+			int ones = 0;
+			for (int j = 0; j < INPUT_SIZE; j++)
+			{
+				input[j] = (i >> j) & 1;
+				ones += input[j];
+			}
+			float target = ones % 2 == 1 ? 1.0f : 0.0f;
+
+			brain.feedforward(input, output);
+			int prediction = output[0] > 0.5f ? 1 : 0;
+			if (prediction == (int)target) correct++;
+		}
+		fitness = (float)correct / (float)n_cases;
+		fitness += fitness_float * 1.0f / (float)n_cases;
+		stale();
+	}
+
+	void stale()
+	{
 		if (fitness > best_fitness)
 		{
 			best_fitness = fitness;
@@ -49,17 +83,13 @@ public:
 		}
 		else
 			staleness++;
-		// int a = Random::get().randint(0, 4);
-		// brain.feedforward(inputs[a], output);
-		// fitness = 1 / (1 + std::abs(output[0] - targets[a][0]));
 	}
 
 	void teach(Agent* other)
 	{
+		// update_score();
 		brain.update_encoding();
-		// int index = Random::get().randint(0, brain.m_nodes.size() - INPUT_SIZE - OUTPUT_SIZE);
-		// Node* n = brain.m_nodes[index + INPUT_SIZE + OUTPUT_SIZE];
-		Node* n = select_transmission_node();
+		Node* n = select_transmission_node(other->brain.m_layers);
 		std::vector<ENCODING> chain_vectors;
 		chain_vectors.push_back(n->encoding);
 		int initial_depth = n->depth_index;
@@ -89,20 +119,21 @@ public:
 			brain.feedforward(input, output);
 			other->brain.backpropagate(input, output);
 		}
-		other->brain.update_weights(0.1, EXAMPLE_SIZE);
+		other->brain.update_weights(0.0, EXAMPLE_SIZE);
 	}
 
 	void update_score()
 	{
 		for (Node* n : brain.m_ordered_nodes)
 		{
-			n->originality_score = ConceptArchive::get().get_originality_score(n, n->depth_index);
-			n->transmission_score = ConceptArchive::get().get_transmission_score(n, n->depth_index);
-			n->importance_score = n->originality_score * originality_personality + n->transmission_score * transmission_personality;
+			// n->novelty_score *= .99f;
+			// n->originality_score = ConceptArchive::get().get_originality_score(n, n->depth_index);
+			n->importance_score = n->originality_score * originality_personality + n->novelty_score * novelty_personality + n->utility_score * utility_personality + n->community_score * community_personality;
+			n->importance_score /= 2.0f;
 		}
 	}
 
-	Node* select_transmission_node()
+	Node* select_transmission_node(int max_depth)
 	{
 		// Compute importance score for each non-input, non-bias node
 		std::vector<float> scores;
@@ -111,8 +142,9 @@ public:
 		for (Node* n : brain.m_nodes)
 		{
 			if (n->depth_index == 0) continue;
+			if (n->depth_index > max_depth) continue;
 			candidates.push_back(n);
-			scores.push_back(n->importance_score * n->depth_index);
+			scores.push_back(n->importance_score);
 		}
 
 		if (candidates.empty()) return nullptr;

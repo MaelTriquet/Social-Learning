@@ -8,6 +8,8 @@
 #include "const.hpp"
 #include <Eigen/Dense>
 #include <unordered_set>
+#include "concept_archive.hpp"
+#include "global.hpp"
 
 
 struct ResonanceResult
@@ -23,11 +25,12 @@ struct ResonanceResult
 class Brain
 {
 private:
-	int m_layers = 2;
 	Node* m_bias;
 
 	bool fully_connected();
 public:
+	bool best = false;
+	int m_layers = 2;
 	std::vector<Node*> m_ordered_nodes = {};
 	std::vector<Connection*> m_connections = {};
 	std::vector<Node*> m_nodes = {};
@@ -60,4 +63,5 @@ public:
 	void weight_alignment(Node* anchor, ENCODING residual);
 	void add_connection(Node* anchor, ENCODING residual);
 	void add_node(Node* anchor, ENCODING residual);
+	Brain* copy();
 };

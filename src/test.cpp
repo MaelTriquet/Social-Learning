@@ -1,6 +1,7 @@
 #include "test.hpp"
 #include "renderer/renderer.hpp"
 #include <unordered_map>
+#include "global.hpp"
 
 void draw(Brain& brain, int width, int height, int corner_x, int corner_y);
 void create_xor_brain(Brain& brain)
@@ -107,22 +108,26 @@ void draw(Brain& brain, int width = Renderer::width, int height = Renderer::heig
 		sf::Vector2f offset(1.0f / (float)layers_amount.size() * width / 2 + corner_x, 1.0f / (float)layers_amount[layer] * height / 2 + corner_y);
 		coords[n] = sf::Vector2f(x + offset.x, y + offset.y);
 
+
+
+	}
+	Renderer::center_mode = CENTER;
+	
+	for (Node* n : brain.m_nodes)
+	{
 		for (Connection* c : n->connections)
 		{
 			Renderer::stroke_color = c->weight > 0 ? sf::Color::Red : sf::Color::Blue;
 			Renderer::stroke_width = std::clamp((float)std::abs(c->weight) * 5.0f, 0.0f, 5.0f);
 			Renderer::line(coords[n], coords[c->from]);
 		}
-
-
-		Renderer::fill = true;
-		Renderer::stroke = true;
-		Renderer::stroke_color = sf::Color::White;
-		Renderer::fill_color = sf::Color(50, 50, 50);
-		Renderer::stroke_width = 2.0f;
 	}
-	Renderer::center_mode = CENTER;
 	
+	Renderer::fill = true;
+	Renderer::stroke = true;
+	Renderer::stroke_color = sf::Color::White;
+	Renderer::fill_color = sf::Color(50, 50, 50);
+	Renderer::stroke_width = 2.0f;
 	for (Node* n : brain.m_ordered_nodes)
 	{
 		Renderer::circle(coords[n], radius);
@@ -131,43 +136,59 @@ void draw(Brain& brain, int width = Renderer::width, int height = Renderer::heig
 
 void test_population(bool verbose)
 {
-	Renderer::init(800, 800);
-	Population population(100);
-	while (Renderer::loop())
+	bool show = false;
+	if (show)
 	{
-		// sf::sleep(sf::seconds(1));
-		Renderer::background();
-		draw(population.best_agent->brain, Renderer::width, Renderer::height, 0, 0);
-		population.update();
-		// if (population.best_fitness > .7)
-		// 	break;
-	}
-	std::sort(population.agents.begin(), population.agents.end(), [](Agent* a, Agent* b) { return a->fitness > b->fitness; });
-	for (int i = 0; i < 10; i++)
-	{
-		population.best_agent = population.agents[i];
-		population.end();
+		Renderer::init(800, 800);
+		Population population(100);
 		while (Renderer::loop())
 		{
 			// sf::sleep(sf::seconds(1));
 			Renderer::background();
-			draw(population.agents[i]->brain, Renderer::width, Renderer::height, 0, 0);
+			draw(population.best_agent->brain, Renderer::width, Renderer::height, 0, 0);
+			population.update();
 			// if (population.best_fitness > .7)
 			// 	break;
 		}
+		std::sort(population.agents.begin(), population.agents.end(), [](Agent* a, Agent* b) { return a->fitness > b->fitness; });
+		for (int i = 0; i < 10; i++)
+		{
+			population.best_agent = population.agents[i];
+			population.end();
+			while (Renderer::loop())
+			{
+				// sf::sleep(sf::seconds(1));
+				Renderer::background();
+				draw(population.agents[i]->brain, Renderer::width, Renderer::height, 0, 0);
+				// if (population.best_fitness > .7)
+				// 	break;
+			}
+		}
+		population.end();
 	}
-	population.end();
+	else
+	{
+		Population population(100);
+		int count = 0;
+		while (count++ < 10000)
+		{
+			population.update();
+		}
+		population.end();
+	}
 }
 
 void test_small_population(bool verbose)
 {
 	Renderer::init(800, 800);
-	int n = 6;
-	int m = 6;
+	int n = 2;
+	int m = 1;
 	Population population(n*m);
+	int count = 0;
+	create_xor_brain(population.agents[0]->brain);
 	while (Renderer::loop())
 	{
-		// sf::sleep(sf::seconds(.1));
+		// sf::sleep(sf::seconds(1));
 		Renderer::background();
 		// std::sort(population.agents.begin(), population.agents.end(), [](Agent* a, Agent* b) { return a->fitness > b->fitness; });
 		for (int i = 0; i < n; i++)
@@ -181,12 +202,14 @@ void test_small_population(bool verbose)
 					Renderer::rectangle(sf::Vector2f(i*Renderer::width/n, j*Renderer::height/m), Renderer::width/n, Renderer::height/m);
 					Renderer::center_mode = CENTER;
 				}
-				// draw(population.ordered_agents[i*m + j]->brain, Renderer::width/n, Renderer::height/m, i*Renderer::width/n, j*Renderer::height/m);
+				draw(population.ordered_agents[i*m + j]->brain, Renderer::width/n, Renderer::height/m, i*Renderer::width/n, j*Renderer::height/m);
 			}
 		}
 		population.update();
-		// if (population.best_fitness > .7)
+		// if (population.best_fitness > .9)
 		// 	break;
+		if (count++ > 10000)
+			break;
 	}
 	// std::sort(population.agents.begin(), population.agents.end(), [](Agent* a, Agent* b) { return a->fitness > b->fitness; });
 	// for (int i = 0; i < 4; i++)

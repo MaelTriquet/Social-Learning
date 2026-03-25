@@ -66,7 +66,7 @@ void Node::remove_connection(Connection* connection)
 		if (connections[i] == connection)
 		{
 			// remove connection from this node
-			std::swap(connections[i], connections.back());
+			connections[i] = connections.back();
 			connections.pop_back();
 			break;
 		}
@@ -123,7 +123,7 @@ void Node::update_encoding()
 	depth_index = 0;
 	for (Connection* c : connections)
 	{
-		encoding += c->weight * c->from->encoding.normalized();
+		encoding += c->from->encoding.normalized() * c->weight;
 		if (c->from->depth_index + 1 > depth_index)
 		{
 			depth_index = c->from->depth_index + 1;

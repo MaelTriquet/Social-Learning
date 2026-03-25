@@ -38,8 +38,11 @@ Brain::Brain()
 Brain::~Brain()
 {
 	for (auto connection : m_connections)
-	{
 		delete connection;
+	for (auto node : m_nodes)
+	{
+		// ConceptArchive::get().remove(node, node->depth_index);
+		delete node;
 	}
 }
 
@@ -214,6 +217,17 @@ void Brain::update_encoding()
 	{
 		n->update_encoding();
 	}
+
+	for (int i = m_ordered_nodes.size() - 1; i >= 0; i--)
+	{
+		Node* n = m_ordered_nodes[i];
+		if (n->depth_index == m_layers - 1)
+		{
+			n->utility_score = 1;
+		}
+		for (Connection* c : n->connections)
+			c->from->utility_score += std::abs(c->weight) * n->utility_score;
+	}
 }
 
 
@@ -236,12 +250,16 @@ void Brain::weight_exploration()
 {
 	float exploration_magnitude = std::exp(-age / 30.0f);
 	exploration_magnitude = 1.0f;
-	for (Connection* c : m_connections)
-	{
-		c->weight += Random::get().rand(-0.5f, 0.5f) * exploration_magnitude;
-		if (CLAMP_WEIGHTS)
-			c->weight = std::clamp(c->weight, -CLAMP, CLAMP);
-	}
+	// for (Connection* c : m_connections)
+	// {
+	// 	c->weight += Random::get().rand(-0.1f, 0.1f) * exploration_magnitude;
+	// 	if (CLAMP_WEIGHTS)
+	// 		c->weight = std::clamp(c->weight, -CLAMP, CLAMP);
+	// }
+	int index = Random::get().randint(0, m_connections.size());
+	m_connections[index]->weight += Random::get().rand(-0.1f, 0.1f) * exploration_magnitude;
+	if (CLAMP_WEIGHTS)
+		m_connections[index]->weight = std::clamp(m_connections[index]->weight, -CLAMP, CLAMP);
 }
 
 void Brain::distance_score(ENCODING chain[CHAIN_SIZE], int initial_depth, std::vector<float>& distances)
@@ -321,7 +339,7 @@ void Brain::interpret_chain(const ENCODING chain[CHAIN_SIZE], int initial_depth)
         if (anchor_norm_sq > 0.0f)
         {
             float proj_scalar = chain[i].dot(best_anchor->encoding) / anchor_norm_sq;
-            residual = chain[i] - proj_scalar * best_anchor->encoding;
+            residual = chain[i] - best_anchor->encoding * proj_scalar;
         }
         else
             residual = chain[i];
@@ -383,7 +401,7 @@ void Brain::decide_action()
         // High residual alone = too foreign (can't integrate it)
         // The sweet spot is medium resonance + medium residual
         float target_score = (0.5f + ambition/2.0f)
-						   * (1.0f - m_resonance[i].anchor->importance_score) // Is this node really important to the agent
+						   // * (1.5f - m_resonance[i].anchor->importance_score) // Is this node really important to the agent
                            * (resonance * 0.5f + residual * 0.5f)
                            * (1.0f - std::abs(resonance - residual)); // peak at resonance≈residual
 		scores[i] = target_score;
@@ -456,7 +474,7 @@ void Brain::decide_action()
     // Good when: low resonance overall,
     //            would change a high importance node
 	// Should be rare overall
-    float score_an_random = ((1.0f - res.resonance_score) + (1.0f - res.anchor->importance_score)) * 0.2f;
+    float score_an_random = ((1.0f - res.resonance_score) + (1.0f - res.anchor->importance_score)) * 0.05f;
 
     // ================================================================
     // STEP 5: Softmax with temperature
@@ -469,7 +487,7 @@ void Brain::decide_action()
         score_an_random
     };
 
-    const float TEMPERATURE = 0.5f;
+    const float TEMPERATURE = 0.3f;
     float max_val = *std::max_element(raw.begin(), raw.end());
     float sum = 0.0f;
     for (float v : raw)
@@ -494,17 +512,25 @@ void Brain::decide_action()
             break;
         }
     }
+	Global::get().interactions++;
 	switch (action)
 	{
 	case 0:
+		Global::get().weight_alignment++;
 		return weight_alignment(res.anchor, res.residual);
 	case 1:
+		Global::get().add_connection++;
 		return add_connection(res.anchor, res.residual);
 	case 2:
+		Global::get().add_node++;
 		return add_node(res.anchor, res.residual);
 	case 3:
-		if (Random::get().rand(0, 1) < 0.5)
+		if (Random::get().rand(0, 1) < 0.99)
+		{
+			Global::get().weight_exploration++;
 			weight_exploration();
+		} else
+			Global::get().add_node_random++;
 		return add_node_random();
 	}
 	update_encoding();

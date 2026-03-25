@@ -3,18 +3,22 @@
 #include <vector>
 #include <iostream>
 #include <algorithm>
+#include "group.hpp"
+#include "threadpool.hpp"
 
 class Population
 {
 public:
 	std::vector<Agent*> agents = {};
 	std::vector<Agent*> ordered_agents = {};
+	std::vector<Group> groups = {};
 	int size = 0;
 	int generation = 0;
 	float best_fitness = 0;
 	float total_fitness = 0;
 	int time_since_upgrade = 0;
 	Agent* best_agent = nullptr;
+	ThreadPool m_pool;
 
 
 	Population(int size_):
@@ -36,152 +40,254 @@ public:
 		}
 	}
 
+	// void evaluate()
+	// {
+	// 	generation++;
+	// 	total_fitness = 0;
+	// 	bool best_fitness_changed = false;
+	// 	for (Agent* a : agents)
+	// 	{
+	// 		a->fitness_function();
+	// 		if (a->fitness > best_fitness)
+	// 		{
+	// 			best_agent->brain.best = false;
+	// 			best_fitness_changed = true;
+	// 			best_fitness = a->fitness;
+	// 			best_agent = a;
+	// 			best_agent->brain.best = true;
+	// 			std::cout << "Best fitness: " << best_fitness << " at generation " << generation << std::endl;
+	// 		}
+	// 		total_fitness += a->fitness;
+	// 	}
+	// }
+
 	void evaluate()
 	{
 		generation++;
 		total_fitness = 0;
-		for (int i = 0; i < size; i++)
+
+		// Parallel: fitness evaluations are fully independent
+		std::vector<std::future<void>> futures;
+		futures.reserve(agents.size());
+		for (Agent* a : agents)
+			futures.push_back(m_pool.submit([a]() { a->fitness_function(); }));
+		for (auto& f : futures)
+			f.wait();
+
+		// Serial: aggregate results — fast, no point parallelising
+		bool best_fitness_changed = false;
+		for (Agent* a : agents)
 		{
-			agents[i]->fitness_function();
-			if (agents[i]->fitness > best_fitness)
+			total_fitness += a->fitness;
+			if (a->fitness > best_fitness)
 			{
-				best_fitness = agents[i]->fitness;
-				best_agent = agents[i];
+				best_agent->brain.best = false;
+				best_fitness_changed = true;
+				best_fitness = a->fitness;
+				best_agent = a;
+				best_agent->brain.best = true;
+				std::cout << "Best fitness: " << best_fitness
+						  << " at generation " << generation << std::endl;
 			}
-			total_fitness += agents[i]->fitness;
 		}
 	}
 	
 	void group()
 	{
-		Random::get().shuffle(agents);
 		for (Agent* a : agents)
 			a->brain.max_size = best_agent->brain.m_nodes.size() + 1;
-		life_cycle();
 
-		std::vector<Agent*> group;
-		float group_fitness = 0;
-		Agent* teacher = nullptr;
-		for (int i = 0; i < agents.size(); i++)
+		for (Group& g : groups)
 		{
-			if (agents[i] == best_agent) teacher = agents[i];
-			group_fitness += agents[i]->fitness;
-			group.push_back(agents[i]);
-			if (i % GROUP_SIZE == GROUP_SIZE - 1)
+			if (g.agents.size() == 1)
+				continue;
+			for (Agent* a : g.agents)
 			{
-				float a = Random::get().rand(0, group_fitness);
-				for (int j = 0; j < GROUP_SIZE; j++)
+				float inside = Random::get().rand(0, 1) < INSIDE_GROUP_PROBABILITY;
+				Agent* other = nullptr;
+				if (inside)
 				{
-					if (a > group[j]->fitness && teacher == nullptr)
-						a -= group[j]->fitness;
-					else
+					do
 					{
-						if (!teacher)
-							teacher = group[j];
-						break;
-					}
+						other = g.agents[Random::get().randint(0, g.agents.size())];
+					} while (other == a);
+				} else {
+					Group& other_group = groups[Random::get().randint(0, groups.size())];
+					do {
+						other = other_group.agents[Random::get().randint(0, other_group.agents.size())];
+					} while (other == a);
 				}
-				for (int j = 0; j < GROUP_SIZE; j++)
-				{
-					if (group[j] == teacher) continue;
-					teacher->show(group[j]);
-					if (Random::get().rand(0, 1) < 0.2)
-						teacher->teach(group[j]);
-					group[j]->update_score();
-				}
-				teacher = nullptr;
-				group_fitness = 0;
-				group.clear();
+
+				float random = Random::get().rand(0, a->fitness + other->fitness);
+				if (a == best_agent)
+					a->teach(other);
+				else if (other == best_agent)
+					other->teach(a);
+				else if (random < a->fitness)
+					a->teach(other);
+				else
+					other->teach(a);
 			}
 		}
 	}
 
 	void life_cycle()
 	{
+		Random::get().shuffle(agents);
 		float a = Random::get().rand();
-		if (a < 0.05)
+		if (a < 0.8)
 			return;
 		int max_staleness = 0;
+		int index = -1;
 		for (int i = 0; i < size; i++)
 		{
 			if (agents[i]->staleness > max_staleness)
 			{
-				std::swap(agents[i], agents.back());
+				index = i;
 				max_staleness = agents[i]->staleness;
 			}
 		}
 		if (max_staleness < 300)
 			return;
-		if (agents.back() == best_agent) return;
-		Agent* agent = agents.back();
+		bool best = false;
+		for (Group& g : groups)
+			if (g.getBestAgent() == agents[index])
+			{
+				best = true;
+				break;
+			}
+		if (best) return;
+		Agent* agent = agents[index];
 		int i;
 		for (i = 0; i < size; i++)
 		{
 			if (ordered_agents[i] == agent)
 				break;
 		}
-		delete agents.back();
-		agents.pop_back();
-		agents.push_back(new Agent());
-		ordered_agents[i] = agents.back();
+		delete agent;
+		agents[index] = new Agent();
+		ordered_agents[i] = agents[index];
+	}
+
+	int find_group_index(Agent* a)
+	{
+		int n = (int)groups.size(); // snapshot size before any potential reallocation
+		std::vector<std::future<bool>> futures;
+		futures.reserve(n);
+
+		for (int i = 0; i < n; i++)
+			futures.push_back(m_pool.submit([this, i, a]()
+			{
+				return groups[i].isInGroup(a);
+			}));
+
+		for (int i = 0; i < n; i++)
+			if (futures[i].get())
+				return i;
+
+		return -1;
 	}
 
 	void update()
 	{
+		life_cycle();
+
+		for (Group& g : groups)
+			g.agents.clear();
+		// Parallelized version
+		// for (Agent* a : agents)
+		// {
+		// 	bool in_group = false;
+		// 	int index = find_group_index(a);
+		// 	if (index != -1)
+		// 		groups[index].agents.push_back(a);
+		// 	else
+		// 		groups.push_back(Group(a));
+		//
+		// }
+		for (Agent* a : agents) // sequential version
+		{
+			bool in_group = false;
+			for (Group& g : groups)
+				if (g.isInGroup(a))
+				{
+					in_group = true;
+					g.agents.push_back(a);
+					break;
+				}
+			if (!in_group)
+				groups.push_back(Group(a));
+		}
+		for (int i = groups.size() - 1; i >= 0; i--)
+		{
+			Group& g = groups[i];
+			if (g.agents.size() == 0)
+			{
+				std::swap(g, groups.back());
+				groups.pop_back();
+			}
+		}
+		// std::cout << "Groups: " << groups.size() << std::endl;
 		ConceptArchive::get().compute_centroid();
 		evaluate();
 		group();
-		// std::cout << "Best fitness: " << best_fitness << std::endl;
-		// std::cout << "Average fitness: " << total_fitness / size << std::endl;
-		int max_nodes = 0;
-		for (Agent* a : agents)
-		{
-			if (a->fitness == best_fitness) continue;
-			a->brain.age++;
-			// if (a->brain.age % 10 == 0)
-			// 	a->brain.weight_exploration();
-			if (a->brain.m_nodes.size() > max_nodes)
-				max_nodes = a->brain.m_nodes.size();
-		}
-		// if (time_since_upgrade > 5000)
-		// {
-		// 	std::cout << "Simulation Over" << std::endl;
-		// 	std::cout << "Best agent: " << best_agent->fitness << std::endl;
-		// 	float inputs[4][INPUT_SIZE] = {{0,0},{0,1},{1,0},{1,1}};
-		// 	for (int i = 0; i < 4; i++)
-		// 	{
-		// 		best_agent->brain.feedforward(inputs[i], best_agent->output);
-		// 		std::cout << inputs[i][0] << " " << inputs[i][1] << " => " << best_agent->output[0] << std::endl;
-		// 	}
-		// 	exit(0);
-		// }
-		std::cout << "Max score: " << best_fitness << std::endl;
-		std::cout << "Max size: " << best_agent->brain.m_nodes.size() << std::endl;
-		std::cout << "Generation: " << generation << std::endl;
-		// std::cout << "Max nodes: " << max_nodes << std::endl;
-		// std::cout << "Best agent: \n" << best_agent->fitness << std::endl;
-		// float inputs[4][INPUT_SIZE] = {{0,0},{0,1},{1,0},{1,1}};
-		// for (int i = 0; i < 4; i++)
-		// {
-		// 	best_agent->brain.feedforward(inputs[i], best_agent->output);
-		// 	std::cout << inputs[i][0] << " " << inputs[i][1] << " => " << best_agent->output[0] << std::endl;
-		// }
-
-		// if (max_nodes > 30)
-		// 	exit(0);
 	}
 
 	void end()
 	{
 		std::cout << "Simulation Over" << std::endl;
-		std::cout << "Best agent: " << best_agent->fitness << std::endl;
-		float inputs[4][INPUT_SIZE] = {{0,0},{0,1},{1,0},{1,1}};
-		for (int i = 0; i < 4; i++)
-		{
-			best_agent->brain.feedforward(inputs[i], best_agent->output);
-			std::cout << inputs[i][0] << " " << inputs[i][1] << " => " << best_agent->output[0] << std::endl;
-		}
-		std::cout << "Generation: " << generation << std::endl;
-	}
+		std::cout << "Best agent's fitness: " << best_agent->fitness << std::endl;
+		int n_cases = 1 << INPUT_SIZE; // 2^INPUT_SIZE
 
+		float input[INPUT_SIZE] = {0};
+		float output[OUTPUT_SIZE] = {0};
+		for (int i = 0; i < n_cases; i++)
+		{
+			// Generate input from binary representation of i
+			int ones = 0;
+			for (int j = 0; j < INPUT_SIZE; j++)
+			{
+				input[j] = (i >> j) & 1;
+				ones += input[j];
+			}
+			float target = ones % 2 == 1 ? 1.0f : 0.0f;
+
+			best_agent->brain.feedforward(input, output);
+			for (int j = 0; j < INPUT_SIZE; j++)
+				std::cout << input[j] << " ";
+			std::cout << "=> " << output[0] << std::endl;
+		}
+
+		// Best agent per group
+		// std::cout << "Groups: " << groups.size() << std::endl;
+		// for (Group& g : groups)
+		// {
+		// 	std::cout << "Group's best agent fitness: " << g.getBestAgent()->fitness << std::endl;
+		// 	Agent* a = g.getBestAgent();
+		// 	std::cout << a->fitness << std::endl;
+		// 	for (int i = 0; i < 4; i++)
+		// 	{
+		// 		a->brain.feedforward(inputs[i], a->output);
+		// 		std::cout << inputs[i][0] << " " << inputs[i][1] << " => " << a->output[0] << std::endl;
+		// 	}
+		// }
+
+
+
+		// All agents in best group
+		// Group& best_group = groups[0];
+		// for (int i = 0; i < groups.size(); i++)
+		// 	if (groups[i].getBestAgent() == best_agent)
+		// 		best_group = groups[i];
+		// std::cout << "Best group: " << std::endl;
+		// for (Agent* a : best_group.agents)
+		// {
+		// 	std::cout << a->fitness << std::endl;
+		// 	for (int i = 0; i < 4; i++)
+		// 	{
+		// 		a->brain.feedforward(inputs[i], a->output);
+		// 		std::cout << inputs[i][0] << " " << inputs[i][1] << " => " << a->output[0] << std::endl;
+		// 	}
+		// }
+	}
 };

@@ -25,10 +25,12 @@ public:
 	int depth_index;
 	float value = 0;
 	float delta = 0.0f;
+	float novelty_score = 0;
+	float utility_score = 0;
+	float community_score = 0;
 	float originality_score = 0;
-	float transmission_score = 0;
 	float importance_score = 0;
-	ENCODING encoding;
+	ENCODING encoding = ENCODING::Zero();
 	// Holds the connections that are incoming to this node
 	std::vector<Connection*> connections{};
 
@@ -42,9 +44,7 @@ public:
 	Node(int depth_index_, int act_fun_idx = 0):
 		m_act_fun_idx(act_fun_idx),
 		depth_index(depth_index_)
-	{
-		encoding *= 0;
-	}
+	{}
 
 	void forward();
 	float derivative();

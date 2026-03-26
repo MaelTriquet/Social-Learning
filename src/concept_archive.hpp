@@ -9,7 +9,6 @@
 
 class ConceptCluster {
 private:
-	ENCODING m_centroid;
 
 
 	bool inside(Node* node)
@@ -20,6 +19,7 @@ private:
 
 public:
 
+	ENCODING m_centroid;
 	siv::ID id = -1;
 	siv::Vector<Node*> m_nodes = {};
 	int depth;

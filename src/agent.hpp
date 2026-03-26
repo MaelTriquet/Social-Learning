@@ -13,6 +13,7 @@ public:
 	Brain brain;
 	float fitness = 0;
 	bool book = false;
+	const Agent* writer;
 	float input[INPUT_SIZE] = {0};
 	float output[OUTPUT_SIZE] = {0};
 	float best_fitness = 0;
@@ -25,7 +26,8 @@ public:
 	ENCODING chain[CHAIN_SIZE];
 	
 	Agent():
-		brain()
+		brain(),
+		writer(this)
 	{
 		for (int j = 0; j < CHAIN_SIZE; j++)
 			chain[j] = ENCODING::Zero();
@@ -36,7 +38,8 @@ public:
 	}
 
 	Agent(const Agent& copy):
-		brain(copy.brain)
+		brain(copy.brain),
+		writer(&copy)
 	{
 		fitness = copy.fitness;
 		book = true;
@@ -81,6 +84,8 @@ public:
 		fitness = (float)correct / (float)n_cases;
 		fitness += fitness_float * 1.0f / (float)n_cases;
 		stale();
+		for (Node* n : brain.m_nodes)
+			n->update_usefulness(fitness, fitness, n->utility_score);
 	}
 
 	void stale()
@@ -123,8 +128,12 @@ public:
 			}
 		}
 		if (this_node == nullptr || other_node == nullptr) return; // No shared concept to debate about, skip for now
-		brain.weight_alignment(this_node, other_node->encoding - this_node->encoding, 0.1f);
-		other->brain.weight_alignment(other_node, this_node->encoding - other_node->encoding, 0.1f);
+		if (!book)
+			brain.weight_alignment(this_node, other_node->encoding - this_node->encoding, 0.1f);
+		if (!other->book)
+			other->brain.weight_alignment(other_node, this_node->encoding - other_node->encoding, 0.1f);
+		this_node->update_usefulness(fitness, other->fitness, other_node->utility_score);
+		other_node->update_usefulness(other->fitness, fitness, this_node->utility_score);
 	}
 
 	void teach(Agent* other)
@@ -183,7 +192,7 @@ public:
 			if (n->depth_index == 0) continue;
 			if (n->depth_index > max_depth) continue;
 			candidates.push_back(n);
-			scores.push_back(n->importance_score);
+			scores.push_back(n->usefulness);
 		}
 
 		if (candidates.empty()) return nullptr;

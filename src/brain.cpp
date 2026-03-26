@@ -58,7 +58,7 @@ Brain::Brain(const Brain& copy)
 		}
 	}
 	sort_nodes();
-	// update_encoding();
+	update_encoding();
 
 }
 
@@ -243,6 +243,7 @@ void Brain::update_encoding()
 	for (Node* n : m_ordered_nodes)
 	{
 		n->update_encoding();
+		n->utility_score = 0;
 	}
 
 	for (int i = m_ordered_nodes.size() - 1; i >= 0; i--)
@@ -275,18 +276,19 @@ void Brain::add_node_random()
 
 void Brain::weight_exploration()
 {
-	// float exploration_magnitude = std::exp(-age / 30.0f);
-	// exploration_magnitude = 1.0f;
+	return;
+	float exploration_magnitude = std::exp(-age / 30.0f);
+	exploration_magnitude = 1.0f;
 	// // for (Connection* c : m_connections)
 	// // {
 	// // 	c->weight += Random::get().rand(-0.1f, 0.1f) * exploration_magnitude;
 	// // 	if (CLAMP_WEIGHTS)
 	// // 		c->weight = std::clamp(c->weight, -CLAMP, CLAMP);
 	// // }
-	// int index = Random::get().randint(0, m_connections.size());
-	// m_connections[index]->weight += Random::get().rand(-0.1f, 0.1f) * exploration_magnitude;
-	// if (CLAMP_WEIGHTS)
-	// 	m_connections[index]->weight = std::clamp(m_connections[index]->weight, -CLAMP, CLAMP);
+	int index = Random::get().randint(0, m_connections.size());
+	m_connections[index]->weight += Random::get().rand(-0.1f, 0.1f) * exploration_magnitude;
+	if (CLAMP_WEIGHTS)
+		m_connections[index]->weight = std::clamp(m_connections[index]->weight, -CLAMP, CLAMP);
 	// std::cout << "FUCK" << std::endl;
 }
 
@@ -569,7 +571,7 @@ void Brain::add_connection(Node* anchor, ENCODING residual)
 
 void Brain::add_node(Node* anchor, ENCODING residual)
 {
-    if (anchor->depth_index <= 0) return;
+    if (anchor->depth_index == 0) return;
 
     // --- 1. Find best predecessor ---
     float best_scalar  = -1.0f;
@@ -580,7 +582,6 @@ void Brain::add_node(Node* anchor, ENCODING residual)
     for (Node* n : m_ordered_nodes)
     {
         if (n->depth_index >= anchor->depth_index) break;
-		if (n->depth_index < anchor->depth_index - 1) continue;
         if (n == m_bias) continue;
 
         float n_norm = n->encoding.norm();

@@ -21,7 +21,7 @@ public:
 	}
 	~Group() = default;
 
-	bool isInGroup(Agent* agent)
+	bool isInGroup(Agent* agent, float threshold)
 	{
 		float distance = 0;
 		std::vector<float> distances = std::vector<float>();
@@ -31,7 +31,7 @@ public:
 			float d = minDist(n->encoding, n->depth_index);
 			distances.push_back(1-d);
 			distance += d / agent->brain.m_ordered_nodes.size();
-			if (distance > GROUP_THRESHOLD)
+			if (distance > threshold)
 				return false;
 		}
 		for (int i = 0; i < distances.size(); i++)

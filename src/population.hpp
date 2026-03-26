@@ -5,6 +5,7 @@
 #include <algorithm>
 #include "group.hpp"
 #include "threadpool.hpp"
+#include <unordered_map>
 
 class Population
 {
@@ -12,7 +13,8 @@ public:
 	std::vector<Agent*> agents = {};
 	std::vector<Agent*> ordered_agents = {};
 	std::vector<Group> groups = {};
-	std::vector<Agent> books = {};
+	// std::vector<Agent> books = {};
+	std::unordered_map<Agent*, Agent*> books = {};
 	int size = 0;
 	int generation = 0;
 	float best_fitness = 0;
@@ -20,6 +22,8 @@ public:
 	int time_since_upgrade = 0;
 	Agent* best_agent = nullptr;
 	ThreadPool m_pool;
+	float group_threshold = GROUP_THRESHOLD;
+	float group_adjustment = 0.00f;
 
 
 	Population(int size_):
@@ -38,6 +42,10 @@ public:
 		for (int i = 0; i < size; i++)
 		{
 			delete agents[i];
+		}
+		for (auto i = books.begin(); i != books.end(); i++)
+		{
+			delete i->second;
 		}
 	}
 
@@ -89,8 +97,11 @@ public:
 				best_agent->brain.best = true;
 				std::cout << "Best fitness: " << best_fitness
 						  << " at generation " << generation << std::endl;
-				books.emplace_back(*a);
-				for (Node* n : books.back().brain.m_nodes)
+
+				if (books.count(best_agent))
+					delete books[best_agent];
+				books[best_agent] = new Agent(*best_agent);
+				for (Node* n : books[best_agent]->brain.m_nodes)
 					ConceptArchive::get().update_cluster(n, n->depth_index);
 			}
 		}
@@ -122,7 +133,7 @@ public:
 					} while (other == a);
 				}
 
-				if (Random::get().rand(0, 1) < 0.1)
+				if (Random::get().rand(0, 1) < 0.05)
 				{
 					float random = Random::get().rand(0, a->fitness + other->fitness);
 					if (a == best_agent)
@@ -140,6 +151,23 @@ public:
 				}
 			}
 		}
+
+		// for (auto i = books.begin(); i != books.end(); i++)
+		// {
+		// 	Agent* b = i->second;
+		// 	int index = Random::get().randint(0, agents.size());
+		// 	if (Random::get().rand(0, 1) < 0.1 && agents[index] != best_agent)
+		// 		b->teach(agents[index]);
+		// 	else
+		// 		b->debate(agents[index]);
+		// }
+		Agent* b = books[best_agent];
+		int index = Random::get().randint(0, agents.size());
+		if (Random::get().rand(0, 1) < 0.1 && agents[index] != best_agent)
+			b->teach(agents[index]);
+		else
+			b->debate(agents[index]);
+
 	}
 
 	void life_cycle()
@@ -148,7 +176,7 @@ public:
 		if (a < 0.8)
 			return;
 		int index = Random::get().randint(0, agents.size());
-		if (agents[index]->staleness > 300) return;
+		if (agents[index]->staleness < 300) return;
 		bool best = false;
 		for (Group& g : groups)
 			if (g.getBestAgent() == agents[index])
@@ -179,7 +207,7 @@ public:
 		for (int i = 0; i < n; i++)
 			futures.push_back(m_pool.submit([this, i, a]()
 			{
-				return groups[i].isInGroup(a);
+				return groups[i].isInGroup(a, group_threshold);
 			}));
 
 		for (int i = 0; i < n; i++)
@@ -210,7 +238,7 @@ public:
 		{
 			bool in_group = false;
 			for (Group& g : groups)
-				if (g.isInGroup(a))
+				if (g.isInGroup(a, group_threshold))
 				{
 					in_group = true;
 					g.agents.push_back(a);
@@ -219,6 +247,10 @@ public:
 			if (!in_group)
 				groups.push_back(Group(a));
 		}
+		if (groups.size() * groups.size() > agents.size())
+			group_threshold += group_adjustment;
+		else
+			group_threshold -= group_adjustment;
 		for (int i = groups.size() - 1; i >= 0; i--)
 		{
 			Group& g = groups[i];
@@ -231,13 +263,14 @@ public:
 		// std::cout << "Groups: " << groups.size() << std::endl;
 		ConceptArchive::get().compute_centroid();
 		// std::cout << "Clusters: " << ConceptArchive::get().m_clusters.size() << " at generation " << generation << std::endl;
+		// std::cout << "Books: " << books.size() << std::endl;
 		evaluate();
 		group();
 	}
 
 	void end()
 	{
-		best_agent = &books[books.size() - 1];
+		best_agent = books[best_agent];
 		std::cout << "Simulation Over" << std::endl;
 		std::cout << "Best agent's fitness: " << best_agent->fitness << std::endl;
 		int n_cases = 1 << INPUT_SIZE; // 2^INPUT_SIZE

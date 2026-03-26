@@ -137,3 +137,11 @@ void Node::update_encoding()
 		}
 	}
 }
+void Node::update_usefulness(float fitness, float other_fitness, float other_utility)
+{
+    float weight = other_fitness / (fitness + other_fitness) * other_utility;
+    float previous_trust = trust;
+    trust += weight;
+    if (trust == 0.0f) return;
+    usefulness = (usefulness * previous_trust + other_fitness * weight) / trust;
+}

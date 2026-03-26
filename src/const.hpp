@@ -4,7 +4,7 @@
 #define MUT_ADD_CONNECTION 0.05
 #define MUT_WEIGHT 0.05
 
-#define INPUT_SIZE 3
+#define INPUT_SIZE 2
 #define OUTPUT_SIZE 1
 
 #define RELU 0
@@ -26,7 +26,7 @@
 #define GROUP_SIZE 2
 
 #define ENCODING Encoding<INPUT_SIZE + 1>
-#define CLUSTER_THRESHOLD 0.85f
+#define CLUSTER_THRESHOLD 0.75f
 #define GROUP_THRESHOLD 0.3f
 
 #define INSIDE_GROUP_PROBABILITY 0.95f

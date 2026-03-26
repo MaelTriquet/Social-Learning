@@ -31,6 +31,8 @@ public:
 	float community_score = 0;
 	float originality_score = 0;
 	float importance_score = 0;
+	float usefulness = 0;
+	float trust = 0;
 	siv::ID cluster_id = -1;
 	siv::ID id = -1;
 	ENCODING encoding = ENCODING::Zero();
@@ -55,4 +57,5 @@ public:
 	float derivative();
 	void remove_connection(Connection* connection);
 	void update_encoding();
+	void update_usefulness(float fitness, float other_fitness, float other_utility);
 };

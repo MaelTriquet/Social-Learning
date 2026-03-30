@@ -15,6 +15,7 @@ public:
 	std::vector<Group> groups = {};
 	// std::vector<Agent> books = {};
 	std::unordered_map<Agent*, Agent*> books = {};
+	float life_expectancy = 500;
 	int size = 0;
 	int generation = 0;
 	float best_fitness = 0;
@@ -31,7 +32,7 @@ public:
 	{
 		for (int i = 0; i < size; i++)
 		{
-			agents.push_back(new Agent());
+			agents.push_back(new Agent(life_expectancy));
 			ordered_agents.push_back(agents.back());
 		}
 		best_agent = agents[0];
@@ -87,6 +88,7 @@ public:
 		bool best_fitness_changed = false;
 		for (Agent* a : agents)
 		{
+			a->age++;
 			total_fitness += a->fitness;
 			if (a->fitness > best_fitness)
 			{
@@ -105,6 +107,9 @@ public:
 					ConceptArchive::get().update_cluster(n, n->depth_index);
 			}
 		}
+		if (best_fitness_changed)
+			for (Agent* a : agents)
+				a->witness_improvement = true;
 	}
 	
 	void group()
@@ -133,7 +138,7 @@ public:
 					} while (other == a);
 				}
 
-				if (Random::get().rand(0, 1) < 0.05)
+				if (Random::get().rand(0, 1) < 0.1)
 				{
 					float random = Random::get().rand(0, a->fitness + other->fitness);
 					if (a == best_agent)
@@ -147,7 +152,10 @@ public:
 				}
 				else
 				{
-					a->debate(other);
+					if (Random::get().rand(0, 1) < 1)
+						a->debate(other);
+					else	
+						a->show(other);
 				}
 			}
 		}
@@ -172,11 +180,10 @@ public:
 
 	void life_cycle()
 	{
-		float a = Random::get().rand();
-		if (a < 0.8)
-			return;
+		return;
 		int index = Random::get().randint(0, agents.size());
-		if (agents[index]->staleness < 300) return;
+		if (agents[index]->staleness < agents[index]->life_expectancy) return;
+		// if (Random::get().rand(0, 1) < 0.5) return;
 		bool best = false;
 		for (Group& g : groups)
 			if (g.getBestAgent() == agents[index])
@@ -184,17 +191,30 @@ public:
 				best = true;
 				break;
 			}
-		if (best) return;
+		// if (best) return;
 		Agent* agent = agents[index];
 		if (agent == best_agent) return;
+		// if (agent->debate_alignment() > Random::get().rand(0, 0.1)) return;
 		int i;
 		for (i = 0; i < size; i++)
 		{
 			if (ordered_agents[i] == agent)
 				break;
 		}
+		if (agent->fitness > .9 * best_fitness && !books.count(agent))
+		{
+			books[agent] = new Agent(*agent);
+			for (Node* n : books[agent]->brain.m_nodes)
+				ConceptArchive::get().update_cluster(n, n->depth_index);
+		}
+		if (!agent->witness_improvement)
+		{
+			life_expectancy *= 1.01f;
+			for (Agent* a : agents)
+				a->witness_improvement = true;
+		}
 		delete agent;
-		agents[index] = new Agent();
+		agents[index] = new Agent(life_expectancy);
 		ordered_agents[i] = agents[index];
 	}
 

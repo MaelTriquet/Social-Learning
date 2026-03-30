@@ -171,91 +171,93 @@ void test_population(bool verbose)
 	{
 		Population population(100);
 		int count = 0;
-		while (count++ < 10000)
+		while (count++ < 20000)
 		{
+			if (count % 100 == 0)
+				std::cout << "Generation " << count << std::endl;
 			population.update();
 		}
 		population.end();
-		Renderer::init(800, 800);
-		while (Renderer::loop())
-		{
-			Renderer::background();
-			Renderer::fill = false;
-			Renderer::stroke = true;
-			Renderer::stroke_color = sf::Color::White;
-			Renderer::center_mode = CENTER;
-			sf::Vector2f center(Renderer::width/2, Renderer::height/2);
-			Renderer::circle(center, Renderer::width/2);
-			for (ConceptCluster& cluster : ConceptArchive::get().m_clusters)
-			{
-				if (cluster.empty() || cluster.depth != 1) continue;
-				cluster.compute_centroid();
-				ENCODING centroid = cluster.m_centroid.normalized();
-				if (centroid[0] > 0) centroid *= -1;
-				sf::Vector2f sf_centroid(centroid[2], centroid[0]);
-				float avg_fitness = 0;
-				for (auto& node : cluster.m_nodes)
-				{
-					avg_fitness += node->usefulness;
-				}
-				avg_fitness /= cluster.m_nodes.size();
-				Renderer::stroke_width = 4;
-				Renderer::stroke_color = sf::Color(300 * avg_fitness, 255, 0);
-				Renderer::line(center, center + sf_centroid * (float)Renderer::width/2.0f);
-			}
-		}
-		while (Renderer::loop())
-		{
-			Renderer::background();
-			Renderer::fill = false;
-			Renderer::stroke = true;
-			Renderer::stroke_color = sf::Color::White;
-			Renderer::center_mode = CENTER;
-			sf::Vector2f center(Renderer::width/2, Renderer::height/2);
-			Renderer::circle(center, Renderer::width/2);
-			for (ConceptCluster& cluster : ConceptArchive::get().m_clusters)
-			{
-				if (cluster.empty() || cluster.depth != 1) continue;
-				cluster.compute_centroid();
-				ENCODING centroid = cluster.m_centroid.normalized();
-				if (centroid[1] > 0) centroid *= -1;
-				sf::Vector2f sf_centroid(centroid[2], centroid[1]);
-				float avg_fitness = 0;
-				for (auto& node : cluster.m_nodes)
-				{
-					avg_fitness += node->usefulness;
-				}
-				avg_fitness /= cluster.m_nodes.size();
-				Renderer::stroke_width = avg_fitness * 10;
-				Renderer::line(center, center + sf_centroid * (float)Renderer::width/2.0f);
-			}
-		}
-		while (Renderer::loop())
-		{
-			Renderer::background();
-			Renderer::fill = false;
-			Renderer::stroke = true;
-			Renderer::stroke_color = sf::Color::White;
-			Renderer::center_mode = CENTER;
-			sf::Vector2f center(Renderer::width/2, Renderer::height/2);
-			Renderer::circle(center, Renderer::width/2);
-			for (ConceptCluster& cluster : ConceptArchive::get().m_clusters)
-			{
-				if (cluster.empty() || cluster.depth != 1) continue;
-				cluster.compute_centroid();
-				ENCODING centroid = cluster.m_centroid.normalized();
-				if (centroid[1] > 0) centroid *= -1;
-				sf::Vector2f sf_centroid(centroid[0], centroid[1]);
-				float avg_fitness = 0;
-				for (auto& node : cluster.m_nodes)
-				{
-					avg_fitness += node->usefulness;
-				}
-				avg_fitness /= cluster.m_nodes.size();
-				Renderer::stroke_width = avg_fitness * 10;
-				Renderer::line(center, center + sf_centroid * (float)Renderer::width/2.0f);
-			}
-		}
+		// Renderer::init(800, 800);
+		// while (Renderer::loop())
+		// {
+		// 	Renderer::background();
+		// 	Renderer::fill = false;
+		// 	Renderer::stroke = true;
+		// 	Renderer::stroke_color = sf::Color::White;
+		// 	Renderer::center_mode = CENTER;
+		// 	sf::Vector2f center(Renderer::width/2, Renderer::height/2);
+		// 	Renderer::circle(center, Renderer::width/2);
+		// 	for (ConceptCluster& cluster : ConceptArchive::get().m_clusters)
+		// 	{
+		// 		if (cluster.empty() || cluster.depth != 1) continue;
+		// 		cluster.compute_centroid();
+		// 		ENCODING centroid = cluster.m_centroid.normalized();
+		// 		if (centroid[0] > 0) centroid *= -1;
+		// 		sf::Vector2f sf_centroid(centroid[2], centroid[0]);
+		// 		float avg_fitness = 0;
+		// 		for (auto& node : cluster.m_nodes)
+		// 		{
+		// 			avg_fitness += node->usefulness;
+		// 		}
+		// 		avg_fitness /= cluster.m_nodes.size();
+		// 		Renderer::stroke_width = 4;
+		// 		Renderer::stroke_color = sf::Color(300 * avg_fitness, 255, 0);
+		// 		Renderer::line(center, center + sf_centroid * (float)Renderer::width/2.0f);
+		// 	}
+		// }
+		// while (Renderer::loop())
+		// {
+		// 	Renderer::background();
+		// 	Renderer::fill = false;
+		// 	Renderer::stroke = true;
+		// 	Renderer::stroke_color = sf::Color::White;
+		// 	Renderer::center_mode = CENTER;
+		// 	sf::Vector2f center(Renderer::width/2, Renderer::height/2);
+		// 	Renderer::circle(center, Renderer::width/2);
+		// 	for (ConceptCluster& cluster : ConceptArchive::get().m_clusters)
+		// 	{
+		// 		if (cluster.empty() || cluster.depth != 1) continue;
+		// 		cluster.compute_centroid();
+		// 		ENCODING centroid = cluster.m_centroid.normalized();
+		// 		if (centroid[1] > 0) centroid *= -1;
+		// 		sf::Vector2f sf_centroid(centroid[2], centroid[1]);
+		// 		float avg_fitness = 0;
+		// 		for (auto& node : cluster.m_nodes)
+		// 		{
+		// 			avg_fitness += node->usefulness;
+		// 		}
+		// 		avg_fitness /= cluster.m_nodes.size();
+		// 		Renderer::stroke_width = avg_fitness * 10;
+		// 		Renderer::line(center, center + sf_centroid * (float)Renderer::width/2.0f);
+		// 	}
+		// }
+		// while (Renderer::loop())
+		// {
+		// 	Renderer::background();
+		// 	Renderer::fill = false;
+		// 	Renderer::stroke = true;
+		// 	Renderer::stroke_color = sf::Color::White;
+		// 	Renderer::center_mode = CENTER;
+		// 	sf::Vector2f center(Renderer::width/2, Renderer::height/2);
+		// 	Renderer::circle(center, Renderer::width/2);
+		// 	for (ConceptCluster& cluster : ConceptArchive::get().m_clusters)
+		// 	{
+		// 		if (cluster.empty() || cluster.depth != 1) continue;
+		// 		cluster.compute_centroid();
+		// 		ENCODING centroid = cluster.m_centroid.normalized();
+		// 		if (centroid[1] > 0) centroid *= -1;
+		// 		sf::Vector2f sf_centroid(centroid[0], centroid[1]);
+		// 		float avg_fitness = 0;
+		// 		for (auto& node : cluster.m_nodes)
+		// 		{
+		// 			avg_fitness += node->usefulness;
+		// 		}
+		// 		avg_fitness /= cluster.m_nodes.size();
+		// 		Renderer::stroke_width = avg_fitness * 10;
+		// 		Renderer::line(center, center + sf_centroid * (float)Renderer::width/2.0f);
+		// 	}
+		// }
 
 	}
 }
@@ -263,8 +265,8 @@ void test_population(bool verbose)
 void test_small_population(bool verbose)
 {
 	Renderer::init(800, 800);
-	int n = 6;
-	int m = 6;
+	int n = 5;
+	int m = 5;
 	Population population(n*m);
 	int count = 0;
 	create_xor_brain(population.agents[0]->brain);

@@ -4,7 +4,7 @@
 #define MUT_ADD_CONNECTION 0.05
 #define MUT_WEIGHT 0.05
 
-#define INPUT_SIZE 2
+#define INPUT_SIZE 3
 #define OUTPUT_SIZE 1
 
 #define RELU 0
@@ -22,7 +22,7 @@
 #define CLAMP 1.f
 
 #define CHAIN_SIZE 3
-#define EXAMPLE_SIZE 5
+#define EXAMPLE_SIZE 1
 #define GROUP_SIZE 2
 
 #define ENCODING Encoding<INPUT_SIZE + 1>
@@ -30,3 +30,4 @@
 #define GROUP_THRESHOLD 0.3f
 
 #define INSIDE_GROUP_PROBABILITY 0.95f
+#define DEBATE_ALIGNMENT 0.6f

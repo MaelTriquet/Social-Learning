@@ -23,11 +23,16 @@ public:
 	float community_personality = 0.f;
 	float novelty_personality = 0.f;
 	float utility_personality = 0.f;
+	float life_expectancy = 0;
+	float age = 0;
+	bool witness_improvement = false;
+	float personality = Random::get().rand();
 	ENCODING chain[CHAIN_SIZE];
 	
-	Agent():
+	Agent(int life_expectancy_):
 		brain(),
-		writer(this)
+		writer(this),
+		life_expectancy(life_expectancy_)
 	{
 		for (int j = 0; j < CHAIN_SIZE; j++)
 			chain[j] = ENCODING::Zero();
@@ -129,11 +134,17 @@ public:
 		}
 		if (this_node == nullptr || other_node == nullptr) return; // No shared concept to debate about, skip for now
 		if (!book)
-			brain.weight_alignment(this_node, other_node->encoding - this_node->encoding, 0.1f);
+			brain.weight_alignment(this_node, other_node->encoding - this_node->encoding, debate_alignment());
 		if (!other->book)
-			other->brain.weight_alignment(other_node, this_node->encoding - other_node->encoding, 0.1f);
+			other->brain.weight_alignment(other_node, this_node->encoding - other_node->encoding, other->debate_alignment());
 		this_node->update_usefulness(fitness, other->fitness, other_node->utility_score);
 		other_node->update_usefulness(other->fitness, fitness, this_node->utility_score);
+	}
+
+	float debate_alignment() 
+	{
+		// return 0.5f * std::exp(-age * age / life_expectancy / life_expectancy);
+		return personality;
 	}
 
 	void teach(Agent* other)
@@ -170,7 +181,7 @@ public:
 			brain.feedforward(input, output);
 			other->brain.backpropagate(input, output);
 		}
-		other->brain.update_weights(0.0, EXAMPLE_SIZE);
+		other->brain.update_weights(0.1, EXAMPLE_SIZE);
 	}
 
 	void update_score()

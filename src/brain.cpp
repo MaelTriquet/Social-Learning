@@ -276,7 +276,7 @@ void Brain::add_node_random()
 
 void Brain::weight_exploration()
 {
-	return;
+	// return;
 	float exploration_magnitude = std::exp(-age / 30.0f);
 	exploration_magnitude = 1.0f;
 	// // for (Connection* c : m_connections)

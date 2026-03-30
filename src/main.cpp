@@ -5,9 +5,12 @@ int main()
 	// test_weight_alignment(false);
 	// test_xor(false, 100);
 	// test_add_connection(false);
-	// for (int i = 0; i < 1; i++)
+	// for (int i = 0; i < 10; i++)
+	// {
+	// 	std::cout << "Simulation number " << i << std::endl;
 		test_population(false);
-	// test_small_population(false);
+	// }
+		// test_small_population(false);
 	// test_xor(false, 100);
 
 	return 0;
